@@ -6,6 +6,7 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
+#include <atomic>
 
 // Forward declarations
 class PowerManager;
@@ -42,43 +43,74 @@ class InputHandler;
 #define INTERVAL_WEB         1000   // Web interface updates
 
 // Shared data structure for inter-core communication
+// NOTE: Critical safety flags use std::atomic for lock-free thread safety.
+// Other data is accessed via mutex-protected getters/setters.
 struct SharedSystemData {
-    // Critical safety data (atomic access)
-    volatile bool emergencyStop;
-    volatile bool safetyFault;
-    volatile bool keySwitch;
-    
-    // Power data
-    volatile float batteryVoltage;
-    volatile float batteryCurrent;
-    volatile float batteryPower;
-    volatile float batterySOC;
-    
-    // Motor data
-    volatile float currentSpeedLeft;
-    volatile float currentSpeedRight;
-    volatile float motorCurrentLeft;
-    volatile float motorCurrentRight;
-    volatile uint8_t currentGear;
-    volatile bool motorEnabled;
-    
-    // GPS data
-    volatile bool gpsFixed;
-    volatile double latitude;
-    volatile double longitude;
-    volatile float gpsSpeed;
-    volatile uint8_t satellites;
-    
-    // Geofencing data
-    volatile bool inSafeZone;
-    volatile bool inProhibitedZone;
-    volatile bool speedLimited;
-    volatile float currentSpeedLimit;
-    
-    // System status
-    volatile unsigned long uptime;
-    volatile uint32_t loopCount;
-    volatile bool systemReady;
+    // Critical safety data (atomic for lock-free access)
+    std::atomic<bool> emergencyStop;
+    std::atomic<bool> safetyFault;
+    std::atomic<bool> keySwitch;
+    std::atomic<bool> motorEnabled;
+    std::atomic<bool> systemReady;
+
+    // Power data (mutex-protected access required)
+    float batteryVoltage;
+    float batteryCurrent;
+    float batteryPower;
+    float batterySOC;
+
+    // Motor data (mutex-protected access required)
+    float currentSpeedLeft;
+    float currentSpeedRight;
+    float motorCurrentLeft;
+    float motorCurrentRight;
+    uint8_t currentGear;
+
+    // GPS data (mutex-protected access required)
+    bool gpsFixed;
+    double latitude;
+    double longitude;
+    float gpsSpeed;
+    uint8_t satellites;
+
+    // Geofencing data (mutex-protected access required)
+    bool inSafeZone;
+    bool inProhibitedZone;
+    bool speedLimited;
+    float currentSpeedLimit;
+
+    // System status (mutex-protected access required)
+    unsigned long uptime;
+    uint32_t loopCount;
+
+    // Constructor to initialize atomics
+    SharedSystemData() :
+        emergencyStop(false),
+        safetyFault(false),
+        keySwitch(false),
+        motorEnabled(false),
+        systemReady(false),
+        batteryVoltage(0.0f),
+        batteryCurrent(0.0f),
+        batteryPower(0.0f),
+        batterySOC(0.0f),
+        currentSpeedLeft(0.0f),
+        currentSpeedRight(0.0f),
+        motorCurrentLeft(0.0f),
+        motorCurrentRight(0.0f),
+        currentGear(0),
+        gpsFixed(false),
+        latitude(0.0),
+        longitude(0.0),
+        gpsSpeed(0.0f),
+        satellites(0),
+        inSafeZone(false),
+        inProhibitedZone(false),
+        speedLimited(false),
+        currentSpeedLimit(0.0f),
+        uptime(0),
+        loopCount(0)
+    {}
 };
 
 class CoreManager {
