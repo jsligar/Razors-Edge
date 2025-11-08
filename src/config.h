@@ -21,11 +21,11 @@
 #define GPIO_KEY_SWITCH         15
 
 // User Interface
-#define GPIO_ENCODER_CLK        25
-#define GPIO_ENCODER_DT         26
-#define GPIO_ENCODER_BTN        27
-#define GPIO_KEY0               5   // Changed from 33
-#define GPIO_KEY1               13  // Shift Down
+#define GPIO_ENCODER_CLK        25  // Encoder track A (TRA)
+#define GPIO_ENCODER_DT         26  // Encoder track B (TRB)
+#define GPIO_ENCODER_BTN        27  // Encoder push button
+#define GPIO_KEY0               14  // Confirm/Shift Up button (Button A) - SAFE PIN
+#define GPIO_KEY1               13  // Back/Shift Down button (Button B)
 
 // GPS
 #define GPIO_GPS_RX             16
