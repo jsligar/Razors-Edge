@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Razors Edge - Dashboard (Dev Mode)</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <meta name="theme-color" content="#1a1a1a">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <h1>⚡ Razors Edge</h1>
+            <span class="connection-status" id="connectionStatus">
+                <span class="status-dot disconnected"></span>
+                <span class="status-text">Dev Mode (No Backend)</span>
+            </span>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-icon" id="refreshBtn" title="Refresh">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+            </button>
+            <button class="btn btn-icon" id="settingsBtn" title="Settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m6-12h-6m-6 0h6m6 6h-6m-6 0h6"></path>
+                </svg>
+            </button>
+            <button class="btn btn-secondary btn-sm" id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Emergency Controls (Always Visible) -->
+        <div class="emergency-bar">
+            <button class="btn btn-danger btn-lg" id="emergencyStopBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="1"></rect>
+                </svg>
+                EMERGENCY STOP
+            </button>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Power System Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚡ Power System</h3>
+                    <div class="card-actions">
+                        <span class="badge badge-success" id="powerStatus">OK</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Battery</div>
+                            <div class="metric-value large" id="batteryVoltage">48.2</div>
+                            <div class="metric-unit">Volts</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Current</div>
+                            <div class="metric-value large" id="batteryCurrent">12.5</div>
+                            <div class="metric-unit">Amps</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Power</div>
+                            <div class="metric-value" id="batteryPower">603</div>
+                            <div class="metric-unit">Watts</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">SOC</div>
+                            <div class="metric-value" id="batterySOC">78</div>
+                            <div class="metric-unit">%</div>
+                        </div>
+                    </div>
+                    <div class="battery-bar">
+                        <div class="battery-fill" id="batteryFill" style="width: 78%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Motor Control Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🏎️ Motor Control</h3>
+                    <div class="card-actions">
+                        <span class="gear-display" id="currentGear">2</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Left Motor</div>
+                            <div class="metric-value" id="leftMotorSpeed">65</div>
+                            <div class="metric-unit">%</div>
+                            <div class="metric-sub" id="leftMotorCurrent">8.2 A</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Right Motor</div>
+                            <div class="metric-value" id="rightMotorSpeed">65</div>
+                            <div class="metric-unit">%</div>
+                            <div class="metric-sub" id="rightMotorCurrent">8.1 A</div>
+                        </div>
+                    </div>
+                    <div class="gear-selector">
+                        <button class="gear-btn" data-gear="0">P</button>
+                        <button class="gear-btn" data-gear="1">1</button>
+                        <button class="gear-btn active" data-gear="2">2</button>
+                        <button class="gear-btn" data-gear="3">3</button>
+                        <button class="gear-btn" data-gear="4">E</button>
+                        <button class="gear-btn" data-gear="5">S+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GPS & Navigation Card -->
+            <div class="card card-large">
+                <div class="card-header">
+                    <h3>📍 GPS & Navigation</h3>
+                    <div class="card-actions">
+                        <span class="badge badge-success" id="gpsStatus">Fixed</span>
+                        <span class="badge badge-info" id="satelliteCount">12 sats</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="map-container">
+                        <div id="map"></div>
+                    </div>
+                    <div class="metrics-grid mt-3">
+                        <div class="metric">
+                            <div class="metric-label">Speed</div>
+                            <div class="metric-value" id="gpsSpeed">15.2</div>
+                            <div class="metric-unit">mph</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Odometer</div>
+                            <div class="metric-value" id="odometer">1,245.8</div>
+                            <div class="metric-unit">mi</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Trip</div>
+                            <div class="metric-value" id="tripMeter">23.45</div>
+                            <div class="metric-unit">mi</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Coordinates</div>
+                            <div class="metric-value small" id="coordinates">37.7749, -122.4194</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geofencing Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🛡️ Geofencing</h3>
+                    <div class="card-actions">
+                        <button class="btn btn-sm btn-secondary" id="manageGeofencesBtn">Manage</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Safe Zone</div>
+                            <div class="metric-value" id="safeZone">YES</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Speed Limit</div>
+                            <div class="metric-value" id="speedLimit">25</div>
+                            <div class="metric-unit">mph</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Distance Home</div>
+                            <div class="metric-value" id="distanceHome">156</div>
+                            <div class="metric-unit">m</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Violations</div>
+                            <div class="metric-value" id="violations">0</div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-secondary btn-sm btn-block" id="setHomeBtn">
+                            Set Current Location as Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚙️ System Status</h3>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Key Switch</div>
+                            <div class="metric-value" id="keySwitch">ON</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Safety</div>
+                            <div class="metric-value" id="safetyStatus" style="color: var(--success)">OK</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Uptime</div>
+                            <div class="metric-value" id="uptime">2h 34m</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Free Heap</div>
+                            <div class="metric-value small" id="freeHeap">245.3 KB</div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-secondary btn-sm btn-block" id="calibrationBtn">
+                            📺 OLED Calibration Test
+                        </button>
+                        <button class="btn btn-secondary btn-sm btn-block mt-1" id="resetTripBtn">
+                            Reset Trip Meter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Geofence Management Modal -->
+    <div class="modal" id="geofenceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Geofence Management</h3>
+                <button class="modal-close" id="closeGeofenceModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="geofence-list" id="geofenceList">
+                    <div style="background: var(--bg-input); padding: var(--spacing-md); border-radius: var(--border-radius-sm); margin-bottom: var(--spacing-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <strong>Home Zone</strong>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                    Type: Safe | Radius: 500m
+                                </div>
+                            </div>
+                            <button class="btn btn-danger btn-sm">Remove</button>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-input); padding: var(--spacing-md); border-radius: var(--border-radius-sm); margin-bottom: var(--spacing-sm);">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <strong>School Zone</strong>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                    Type: Speed Limit | Radius: 200m
+                                </div>
+                            </div>
+                            <button class="btn btn-danger btn-sm">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-primary" id="addGeofenceBtn">Add New Geofence</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Dev Mode - No Backend Required
+        console.log('🚀 Razors Edge Dashboard - Development Mode');
+
+        // Initialize Map with sample data
+        const map = L.map('map').setView([37.7749, -122.4194], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        const vehicleIcon = L.divIcon({
+            className: 'vehicle-marker',
+            html: '<div style="background: var(--primary); width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        const marker = L.marker([37.7749, -122.4194], { icon: vehicleIcon }).addTo(map);
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<div>${message}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Event handlers
+        document.getElementById('emergencyStopBtn').addEventListener('click', () => {
+            showToast('⚠️ EMERGENCY STOP (Demo Mode)', 'error');
+        });
+
+        document.querySelectorAll('.gear-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.gear-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('currentGear').textContent = btn.textContent;
+                showToast(`Gear changed to ${btn.textContent}`, 'success');
+            });
+        });
+
+        document.getElementById('setHomeBtn').addEventListener('click', () => {
+            showToast('Home location set (Demo Mode)', 'success');
+        });
+
+        document.getElementById('resetTripBtn').addEventListener('click', () => {
+            showToast('Trip meter reset (Demo Mode)', 'success');
+        });
+
+        document.getElementById('calibrationBtn').addEventListener('click', () => {
+            showToast('📺 OLED Calibration Test (Demo Mode)', 'info');
+        });
+
+        document.getElementById('manageGeofencesBtn').addEventListener('click', () => {
+            document.getElementById('geofenceModal').classList.add('active');
+        });
+
+        document.getElementById('closeGeofenceModal').addEventListener('click', () => {
+            document.getElementById('geofenceModal').classList.remove('active');
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            showToast('Dashboard refreshed', 'success');
+        });
+
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            showToast('Settings coming soon', 'info');
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            showToast('Logout (Demo Mode)', 'info');
+        });
+
+        // Welcome message
+        setTimeout(() => {
+            showToast('Welcome to Razors Edge Dashboard! (Dev Mode)', 'success');
+        }, 500);
+    </script>
+</body>
+</html>
