@@ -342,14 +342,23 @@ void CoreManager::runUserInterfaceTask() {
     
     while (sharedData.systemReady) {
         TASK_MONITOR_START();
-        
+
         if (ui && inputs) {
-            // Handle button presses (use edge detection, not state)
+            // Update input handler (read all buttons and encoder) - Core 1
+            inputs->update();
+
+            // Handle encoder button (use edge detection, not state)
             if (inputs->encoderButtonPressed()) {
                 ui->cycleScreen();
                 Serial.println("Encoder pressed - cycling screen");
             }
-            
+
+            // Check shift buttons and store in shared data for main loop
+            lockData();
+            sharedData.shiftUpPressed = inputs->isShiftUpPressed();
+            sharedData.shiftDownPressed = inputs->isShiftDownPressed();
+            unlockData();
+
             // Update display with shared data
             lockData();
             ui->setVoltage(sharedData.batteryVoltage);
@@ -359,7 +368,7 @@ void CoreManager::runUserInterfaceTask() {
             ui->setMotorData(sharedData.motorCurrentLeft, sharedData.motorCurrentRight, 0);
             ui->setGPSData(sharedData.satellites, sharedData.gpsFixed);
             unlockData();
-            
+
             ui->update();
         }
         

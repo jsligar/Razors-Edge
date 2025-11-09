@@ -41,62 +41,88 @@ delay(2000); // Show startup message before tasks take over
 ```
 **Status**: ✅ Working - Main drive screen displays correctly
 
-### 3. Added inputs.update() to Main Loop
-**File**: `src/main.cpp` line ~157
+### 3. Fixed Race Condition - Moved inputs.update() to UI Task
+**File**: `src/CoreManager.cpp` line ~347
+```cpp
+if (ui && inputs) {
+    // Update input handler (read all buttons and encoder) - Core 1
+    inputs->update();
+
+    // Handle encoder button (use edge detection, not state)
+    if (inputs->encoderButtonPressed()) {
+        ui->cycleScreen();
+        Serial.println("Encoder pressed - cycling screen");
+    }
+
+    // Check shift buttons and store in shared data for main loop
+    lockData();
+    sharedData.shiftUpPressed = inputs->isShiftUpPressed();
+    sharedData.shiftDownPressed = inputs->isShiftDownPressed();
+    unlockData();
+    // ...
+}
+```
+**Status**: ✅ Fixed race condition - all input reading now on Core 1
+
+### 4. Main Loop Reads Button States from SharedData
+**File**: `src/main.cpp` line ~159
 ```cpp
 void loop() {
-    // Update input handler to read buttons and encoder
-    inputs.update();
-    
-    // Handle gear shifting input events (time-critical)
-    if (inputs.isShiftUpPressed()) {
+    // Get shared data (includes button states from UI task on Core 1)
+    SharedSystemData sysData = coreManager.getSharedData();
+
+    // Handle gear shifting input events (buttons read by UI task)
+    if (sysData.shiftUpPressed) {
         stateMachine.handleShiftUp();
         Serial.println("Shift UP requested");
     }
-    
-    if (inputs.isShiftDownPressed()) {
+
+    if (sysData.shiftDownPressed) {
         stateMachine.handleShiftDown();
         Serial.println("Shift DOWN requested");
     }
     // ... rest of loop
 }
 ```
-**Status**: ✅ Code added, but buttons not responding
+**Status**: ✅ Eliminates race condition between cores
 
-### 4. Changed UI Task to Use Event Detection
-**File**: `src/CoreManager.cpp` line ~347
+### 5. Added Button Flags to SharedSystemData
+**File**: `src/CoreManager.h` line ~86
 ```cpp
-if (ui && inputs) {
-    // Handle button presses (use edge detection, not state)
-    if (inputs->encoderButtonPressed()) {
-        ui->cycleScreen();
-        Serial.println("Encoder pressed - cycling screen");
-    }
-    
-    // Update display with shared data
-    lockData();
-    // ... data updates
-    unlockData();
-    
-    ui->update();
-}
+struct SharedSystemData {
+    // ... other fields
+
+    // Input flags (set by UI task, read by main loop)
+    bool shiftUpPressed;
+    bool shiftDownPressed;
+};
 ```
-**Status**: ❌ Encoder button press not detected
+**Status**: ✅ Thread-safe button state communication
 
-## Issues to Investigate
+## Issues Fixed
 
-### Issue 1: Buttons Not Responding
-**Symptoms**: 
-- No serial output when pressing encoder button (should see "Encoder pressed - cycling screen")
-- No serial output when pressing GPIO 14/13 buttons (should see "Shift UP/DOWN requested")
-- OLED screen doesn't change when pressing encoder
+### ✅ Race Condition Between Cores
+**Problem**: `inputs.update()` was called on Core 0 (main loop) while `encoderButtonPressed()` was checked on Core 1 (UI task). This caused button states to be missed or flags cleared before being read.
+
+**Solution**: Moved all input reading to Core 1 (UI task):
+- UI task calls `inputs->update()`
+- UI task checks encoder button directly
+- UI task stores shift button states in `SharedSystemData`
+- Main loop reads button flags from `SharedSystemData`
+
+**Result**: All input handling is now on a single core, eliminating race conditions.
+
+## Remaining Issues to Test
+
+### Issue 1: Buttons Still Not Responding (If Applicable)
+**If buttons still don't work after the race condition fix:**
 
 **Possible Causes**:
 1. **GPIO Pin Conflict**: Check if GPIOs 13, 14, 25, 26, 27 are being used elsewhere
-2. **Input Handler Not Running**: Verify `inputs.update()` is actually being called
-3. **Pullup Configuration**: Internal pullups might not be enabled properly
-4. **Debounce Issues**: 50ms debounce might be too long or button states not clearing
-5. **Hardware Connection**: Verify physical wiring is correct
+2. **Pullup Configuration**: Internal pullups might not be enabled properly
+3. **Debounce Issues**: 50ms debounce might be too long or button states not clearing
+4. **Hardware Connection**: Verify physical wiring is correct
+5. **Timing**: UI task runs at 2Hz (500ms) - button presses shorter than this might be missed
 
 ### Issue 2: ADC2/WiFi Conflict (Non-Critical)
 **Symptoms**: 
@@ -205,8 +231,9 @@ git log --oneline -5
 ```
 
 ## Files Modified in This Session
-1. `src/main.cpp` - Added inputs.update(), disabled watchdog, set default screen
-2. `src/CoreManager.cpp` - Changed to encoderButtonPressed() for event detection
+1. `src/main.cpp` - Disabled watchdog, set default screen, removed inputs.update() from main loop, reads button states from SharedSystemData
+2. `src/CoreManager.cpp` - Added inputs->update() to UI task, checks buttons and stores in SharedSystemData
+3. `src/CoreManager.h` - Added shiftUpPressed and shiftDownPressed flags to SharedSystemData
 
 ## Next Steps for Manual Testing
 1. Add GPIO debug logging to verify pins are reading correctly

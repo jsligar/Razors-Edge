@@ -155,29 +155,26 @@ void loop() {
     
     // Most work is now handled by dedicated tasks on specific cores
     // This main loop just handles coordination and fallback operations
-    
-    // Update input handler to read buttons and encoder
-    inputs.update();
-    
-    // Handle gear shifting input events (time-critical)
-    if (inputs.isShiftUpPressed()) {
+
+    // Get shared data (includes button states from UI task on Core 1)
+    SharedSystemData sysData = coreManager.getSharedData();
+
+    // Handle gear shifting input events (buttons read by UI task)
+    if (sysData.shiftUpPressed) {
         stateMachine.handleShiftUp();
         Serial.println("Shift UP requested");
     }
-    
-    if (inputs.isShiftDownPressed()) {
+
+    if (sysData.shiftDownPressed) {
         stateMachine.handleShiftDown();
         Serial.println("Shift DOWN requested");
     }
-    
+
     // Update state machine coordination
     stateMachine.update();
-    
+
     // Update shared data for task communication
     coreManager.updateSharedData();
-    
-    // Monitor system health
-    SharedSystemData sysData = coreManager.getSharedData();
     if (!sysData.systemReady) {
         Serial.println("⚠ Task system not ready, attempting restart...");
         coreManager.startAllTasks();

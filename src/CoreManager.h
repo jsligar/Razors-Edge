@@ -83,6 +83,10 @@ struct SharedSystemData {
     unsigned long uptime;
     uint32_t loopCount;
 
+    // Input flags (set by UI task, read by main loop)
+    bool shiftUpPressed;
+    bool shiftDownPressed;
+
     // Constructor to initialize all fields
     SharedSystemData() :
         emergencyStop(false),
@@ -109,7 +113,9 @@ struct SharedSystemData {
         speedLimited(false),
         currentSpeedLimit(0.0f),
         uptime(0),
-        loopCount(0)
+        loopCount(0),
+        shiftUpPressed(false),
+        shiftDownPressed(false)
     {}
 };
 
