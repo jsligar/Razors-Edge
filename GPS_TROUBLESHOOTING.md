@@ -38,9 +38,55 @@ PPS        →        (leave disconnected - not used)
 - PPS pin provides timing pulse but is not needed for basic operation
 
 **Common GPS Module Types:**
+- **GT-U7**: VCC, RX, TX, GND, PPS (u-blox NEO-6M/7M based, 3.3V-5V compatible)
 - **Beitian BN-880**: VCC, TX, RX, SCL, SDA (5th pin is I2C for compass)
 - **NEO-6M/7M/8M**: VCC, RX, TX, GND, PPS
 - **GY-GPS6MV2**: VCC, RX, TX, GND, PPS (or NC)
+
+---
+
+## GT-U7 Specific Wiring
+
+Your GT-U7 module has these 5 pins (left to right, facing the antenna):
+
+```
+GT-U7 Module        ESP32 Razors Edge
+------------        -----------------
+VCC (3.3-5V)   →    3.3V (pin labeled 3V3)
+RX             →    GPIO 17 (ESP32 TX pin)
+TX             →    GPIO 16 (ESP32 RX pin)
+GND            →    GND (any ground pin)
+PPS            →    Leave disconnected
+```
+
+**GT-U7 Specifications:**
+- **Chip**: u-blox NEO-6M or NEO-7M
+- **Voltage**: 3.3V to 5V (has built-in voltage regulator)
+- **Default Baud**: 9600 (configured correctly in code)
+- **Update Rate**: 1Hz (can be increased to 5Hz or 10Hz)
+- **Cold Start**: 27 seconds typical
+- **Warm Start**: 1 second typical
+- **Antenna**: Ceramic patch antenna (built-in)
+- **LED**: Blinks when searching, solid when locked
+
+**Visual Pin Identification:**
+```
+GT-U7 Module (top view, antenna up):
+┌─────────────────┐
+│   [ANTENNA]     │
+│                 │
+│  VCC RX TX GND PPS  ← 5 pins along edge
+└─────────────────┘
+
+Pin Order (check your module labels):
+Pin 1: VCC  → 3.3V on ESP32
+Pin 2: RX   → GPIO 17 on ESP32 (crossed!)
+Pin 3: TX   → GPIO 16 on ESP32 (crossed!)
+Pin 4: GND  → GND on ESP32
+Pin 5: PPS  → Not connected
+```
+
+**IMPORTANT**: Some GT-U7 modules have pins in different order! Always check the labels printed on your module. The pin names (VCC, RX, TX, GND, PPS) are usually silkscreened on the PCB.
 
 ---
 
