@@ -10,14 +10,37 @@
 - **Data Format**: NMEA sentences (via TinyGPSPlus library)
 
 ### GPS Connection Diagram
+
+**Common 5-Pin GPS Module Pinouts:**
+
+Most GPS modules have these 5 pins (order may vary):
+1. **VCC** - Power input (3.3V or 5V - check your module!)
+2. **GND** - Ground
+3. **TX** - Transmit from GPS (sends data TO ESP32)
+4. **RX** - Receive to GPS (receives commands FROM ESP32)
+5. **PPS** - Pulse Per Second (optional timing signal, not needed)
+
+**Wiring to ESP32:**
 ```
-ESP32 GPIO 16 (RX) ← TX GPS Module (data from GPS)
-ESP32 GPIO 17 (TX) → RX GPS Module (commands to GPS)
-GPS Module VCC     → 3.3V or 5V (check module spec)
-GPS Module GND     → GND
+GPS Module          ESP32
+----------          -----
+VCC        →        3.3V or 5V (check GPS module voltage!)
+GND        →        GND
+TX         →        GPIO 16 (RX)  ← Data FROM GPS
+RX         →        GPIO 17 (TX)  ← Commands TO GPS
+PPS        →        (leave disconnected - not used)
 ```
 
-**IMPORTANT**: RX/TX are crossed - ESP32 RX connects to GPS TX, ESP32 TX connects to GPS RX.
+**CRITICAL**:
+- RX/TX are **CROSSED** - GPS TX connects to ESP32 RX, GPS RX connects to ESP32 TX
+- Check if your GPS module is **3.3V or 5V** (most are 3.3V compatible)
+- If 5V module, TX/RX may need logic level shifter
+- PPS pin provides timing pulse but is not needed for basic operation
+
+**Common GPS Module Types:**
+- **Beitian BN-880**: VCC, TX, RX, SCL, SDA (5th pin is I2C for compass)
+- **NEO-6M/7M/8M**: VCC, RX, TX, GND, PPS
+- **GY-GPS6MV2**: VCC, RX, TX, GND, PPS (or NC)
 
 ---
 
