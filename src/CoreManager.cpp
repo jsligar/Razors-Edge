@@ -344,9 +344,10 @@ void CoreManager::runUserInterfaceTask() {
         TASK_MONITOR_START();
         
         if (ui && inputs) {
-            // Handle button presses
-            if (inputs->isEncoderPressed()) {
+            // Handle button presses (use edge detection, not state)
+            if (inputs->encoderButtonPressed()) {
                 ui->cycleScreen();
+                Serial.println("Encoder pressed - cycling screen");
             }
             
             // Update display with shared data
