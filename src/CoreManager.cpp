@@ -406,36 +406,7 @@ bool CoreManager::tryLockData(uint32_t timeoutMs) {
 SharedSystemData CoreManager::getSharedData() {
     SharedSystemData data;
     lockData();
-
-    // Manually copy atomic fields using .load()
-    data.emergencyStop = sharedData.emergencyStop.load();
-    data.safetyFault = sharedData.safetyFault.load();
-    data.keySwitch = sharedData.keySwitch.load();
-    data.motorEnabled = sharedData.motorEnabled.load();
-    data.systemReady = sharedData.systemReady.load();
-
-    // Copy non-atomic fields directly
-    data.batteryVoltage = sharedData.batteryVoltage;
-    data.batteryCurrent = sharedData.batteryCurrent;
-    data.batteryPower = sharedData.batteryPower;
-    data.batterySOC = sharedData.batterySOC;
-    data.currentSpeedLeft = sharedData.currentSpeedLeft;
-    data.currentSpeedRight = sharedData.currentSpeedRight;
-    data.motorCurrentLeft = sharedData.motorCurrentLeft;
-    data.motorCurrentRight = sharedData.motorCurrentRight;
-    data.currentGear = sharedData.currentGear;
-    data.gpsFixed = sharedData.gpsFixed;
-    data.latitude = sharedData.latitude;
-    data.longitude = sharedData.longitude;
-    data.gpsSpeed = sharedData.gpsSpeed;
-    data.satellites = sharedData.satellites;
-    data.inSafeZone = sharedData.inSafeZone;
-    data.inProhibitedZone = sharedData.inProhibitedZone;
-    data.speedLimited = sharedData.speedLimited;
-    data.currentSpeedLimit = sharedData.currentSpeedLimit;
-    data.uptime = sharedData.uptime;
-    data.loopCount = sharedData.loopCount;
-
+    data = sharedData;  // Safe copy now that atomics are removed
     unlockData();
     return data;
 }

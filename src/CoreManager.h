@@ -43,15 +43,15 @@ class InputHandler;
 #define INTERVAL_WEB         1000   // Web interface updates
 
 // Shared data structure for inter-core communication
-// NOTE: Critical safety flags use std::atomic for lock-free thread safety.
-// Other data is accessed via mutex-protected getters/setters.
+// NOTE: All data is accessed via mutex-protected getters/setters for thread safety.
+// This ensures the struct remains copyable for return by value.
 struct SharedSystemData {
-    // Critical safety data (atomic for lock-free access)
-    std::atomic<bool> emergencyStop;
-    std::atomic<bool> safetyFault;
-    std::atomic<bool> keySwitch;
-    std::atomic<bool> motorEnabled;
-    std::atomic<bool> systemReady;
+    // Critical safety data (mutex-protected access required)
+    bool emergencyStop;
+    bool safetyFault;
+    bool keySwitch;
+    bool motorEnabled;
+    bool systemReady;
 
     // Power data (mutex-protected access required)
     float batteryVoltage;
@@ -83,7 +83,7 @@ struct SharedSystemData {
     unsigned long uptime;
     uint32_t loopCount;
 
-    // Constructor to initialize atomics
+    // Constructor to initialize all fields
     SharedSystemData() :
         emergencyStop(false),
         safetyFault(false),
