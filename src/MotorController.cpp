@@ -21,7 +21,8 @@ MotorController::MotorController() :
     backEMFProtectionActive(false),
     previousSpeedLeft(0.0f),
     previousSpeedRight(0.0f),
-    backEMFStartTime(0)
+    backEMFStartTime(0),
+    emergencyStopLogged(false)
 {
 }
 
@@ -148,7 +149,11 @@ void MotorController::emergencyStop() {
     // Don't immediately zero current speeds - let ramping handle it
     // This prevents sudden motor driver stress from back-EMF
     
-    Serial.println("EMERGENCY STOP activated - Back-EMF protection engaged");
+    // Only log once to prevent spam
+    if (!emergencyStopLogged) {
+        Serial.println("EMERGENCY STOP activated - Back-EMF protection engaged");
+        emergencyStopLogged = true;
+    }
 }
 
 void MotorController::brake() {

@@ -21,7 +21,9 @@ UserInterface::UserInterface() :
     animationGear(GEAR_PARK),
     encoderPressCount(0),
     lastEncoderPress(0),
-    calibrationUnlocked(false)
+    calibrationUnlocked(false),
+    selectedSettingIndex(0),
+    settingAdjustmentValue(0)
 {
 }
 
@@ -107,6 +109,32 @@ void UserInterface::cycleScreen() {
             break;
         case SCREEN_WARNING:
             // Don't cycle from warning screen
+            break;
+    }
+}
+
+void UserInterface::handleEncoderRotation(int16_t delta) {
+    // Different behavior depending on current screen
+    switch (currentScreen) {
+        case SCREEN_SETTINGS:
+            // On settings screen, adjust selected setting
+            selectedSettingIndex = (selectedSettingIndex + delta) % 3; // 3 example settings
+            if (selectedSettingIndex < 0) selectedSettingIndex += 3;
+            settingAdjustmentValue += delta;
+            break;
+            
+        case SCREEN_MAIN_DRIVE:
+        case SCREEN_DETAILED_METRICS:
+            // Could scroll through info pages or adjust brightness
+            // For now, just log it
+            break;
+            
+        case SCREEN_CALIBRATION:
+            // Adjust calibration values
+            settingAdjustmentValue += delta * 10; // Larger steps for calibration
+            break;
+            
+        default:
             break;
     }
 }
@@ -253,6 +281,27 @@ void UserInterface::drawSettingsScreen() {
     
     display.setCursor(0, 15);
     display.println("Settings Menu");
+    display.setCursor(0, 25);
+    display.println("--------------");
+    
+    // Display adjustable settings with selection indicator
+    const char* settings[] = {"Brightness", "Speed Limit", "Regen Level"};
+    
+    for (int i = 0; i < 3; i++) {
+        display.setCursor(0, 35 + i * 10);
+        if (i == selectedSettingIndex) {
+            display.print("> ");
+        } else {
+            display.print("  ");
+        }
+        display.print(settings[i]);
+        
+        // Show adjustment value for selected item
+        if (i == selectedSettingIndex) {
+            display.print(": ");
+            display.print(settingAdjustmentValue);
+        }
+    }
     
     if (calibrationUnlocked) {
         display.setCursor(0, 25);
@@ -261,17 +310,7 @@ void UserInterface::drawSettingsScreen() {
         display.println("Press encoder to");
         display.setCursor(0, 45);
         display.println("enter test mode");
-    } else {
-        display.setCursor(0, 25);
-        display.println("Press encoder 5x");
-        display.setCursor(0, 35);
-        display.println("rapidly to unlock");
-        display.setCursor(0, 45);
-        display.println("calibration mode");
     }
-    
-    display.setCursor(0, 55);
-    display.println("Long press = main");
 }
 
 void UserInterface::drawWarningScreen() {

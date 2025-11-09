@@ -19,6 +19,7 @@ public:
     void cycleScreen();
     void checkCalibrationSequence();
     ScreenType getCurrentScreen();
+    void handleEncoderRotation(int16_t delta);
     
     // Special displays
     void showStartupMessage();
@@ -70,6 +71,10 @@ private:
     uint8_t encoderPressCount;
     unsigned long lastEncoderPress;
     bool calibrationUnlocked;
+    
+    // Settings adjustment
+    uint8_t selectedSettingIndex;
+    int16_t settingAdjustmentValue;
     
     // Screen drawing methods
     void drawMainDriveScreen();

@@ -72,6 +72,12 @@ void CoreManager::setModuleReferences(PowerManager* pwr, MotorController* mot,
 bool CoreManager::startAllTasks() {
     Serial.println("Starting dual-core tasks...");
     
+    // Mark system as ready BEFORE starting tasks
+    lockData();
+    sharedData.systemReady = true;
+    unlockData();
+    Serial.println("✓ System marked as ready");
+    
     // Task 1: Critical Safety (Core 1, Highest Priority)
     xTaskCreatePinnedToCore(
         criticalTask,
@@ -129,11 +135,6 @@ bool CoreManager::startAllTasks() {
     
     // Wait for all tasks to start
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    
-    // Mark system as ready
-    lockData();
-    sharedData.systemReady = true;
-    unlockData();
     
     Serial.println("✓ All dual-core tasks started successfully");
     printTaskStats();
@@ -281,6 +282,7 @@ void CoreManager::runMotorControlTask() {
 void CoreManager::runNavigationTask() {
     Serial.println("Navigation task started on Core 1");
     TickType_t lastWakeTime = xTaskGetTickCount();
+    unsigned long lastGPSDebug = 0;
     
     while (sharedData.systemReady) {
         TASK_MONITOR_START();
@@ -302,6 +304,18 @@ void CoreManager::runNavigationTask() {
             sharedData.speedLimited = navigation->shouldLimitSpeedForGeofence();
             sharedData.currentSpeedLimit = navigation->getCurrentSpeedLimit();
             unlockData();
+            
+            // GPS debug output every 5 seconds
+            if (millis() - lastGPSDebug > 5000) {
+                Serial.printf("GPS: Sats=%d Fix=%d Lat=%.6f Lng=%.6f Speed=%.1f mph HDOP=%.1f\n",
+                    navigation->getSatellites(),
+                    navigation->isGPSFixed() ? 1 : 0,
+                    navigation->getLatitude(),
+                    navigation->getLongitude(),
+                    navigation->getSpeed(),
+                    navigation->getHDOP());
+                lastGPSDebug = millis();
+            }
         }
         
         TASK_MONITOR_END("Navigation");
@@ -338,6 +352,7 @@ void CoreManager::runWebInterfaceTask() {
 
 void CoreManager::runUserInterfaceTask() {
     Serial.println("User interface task started on Core 1");
+    Serial.printf("DEBUG: systemReady = %d\n", sharedData.systemReady);
     TickType_t lastWakeTime = xTaskGetTickCount();
     
     while (sharedData.systemReady) {
@@ -347,16 +362,41 @@ void CoreManager::runUserInterfaceTask() {
             // Update input handler (read all buttons and encoder) - Core 1
             inputs->update();
 
+            // DEBUG: Log button states every cycle
+            static int debugCounter = 0;
+            if (debugCounter++ % 4 == 0) { // Every 2 seconds (4 * 500ms)
+                Serial.printf("BTN DEBUG - Enc:%d Up:%d Down:%d | GPIO Enc:%d Up:%d Down:%d\n",
+                    inputs->isEncoderPressed(),
+                    inputs->isShiftUpHeld(),
+                    inputs->isShiftDownHeld(),
+                    digitalRead(GPIO_ENCODER_BTN),
+                    digitalRead(GPIO_KEY0),
+                    digitalRead(GPIO_KEY1));
+            }
+
             // Handle encoder button (use edge detection, not state)
             if (inputs->encoderButtonPressed()) {
                 ui->cycleScreen();
-                Serial.println("Encoder pressed - cycling screen");
+                Serial.println("✓ Encoder pressed - cycling screen");
+            }
+
+            // Handle encoder rotation
+            int16_t encoderDelta = inputs->getEncoderDelta();
+            if (encoderDelta != 0) {
+                ui->handleEncoderRotation(encoderDelta);
+                Serial.printf("✓ Encoder rotated: %d\n", encoderDelta);
             }
 
             // Check shift buttons and store in shared data for main loop
+            bool shiftUp = inputs->isShiftUpPressed();
+            bool shiftDown = inputs->isShiftDownPressed();
+            
+            if (shiftUp) Serial.println("✓ Shift UP button pressed");
+            if (shiftDown) Serial.println("✓ Shift DOWN button pressed");
+            
             lockData();
-            sharedData.shiftUpPressed = inputs->isShiftUpPressed();
-            sharedData.shiftDownPressed = inputs->isShiftDownPressed();
+            sharedData.shiftUpPressed = shiftUp;
+            sharedData.shiftDownPressed = shiftDown;
             unlockData();
 
             // Update display with shared data

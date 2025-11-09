@@ -95,6 +95,7 @@ private:
     float previousSpeedLeft;
     float previousSpeedRight;
     unsigned long backEMFStartTime;
+    bool emergencyStopLogged;  // Flag to prevent spam
     
     // Internal methods
     void updateRamping();
