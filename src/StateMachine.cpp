@@ -469,25 +469,32 @@ void StateMachine::executeGearChange(GearMode newGear) {
 }
 
 bool StateMachine::isGearChangeAllowed(GearMode newGear) {
+    // Prevent rapid gear changes (cooldown period)
+    unsigned long timeSinceLastChange = millis() - gearChangeTime;
+    if (timeSinceLastChange < 500) {  // 500ms cooldown
+        // Don't spam serial - just silently reject
+        return false;
+    }
+
     // Check if gear change is safe
     if (newGear == GEAR_SPORT_PLUS) {
         // Special checks for Sport+ mode
         if (powerManager) {
             float voltage = powerManager->getBatteryVoltage();
             float current = powerManager->getBatteryCurrent();
-            
+
             if (voltage < 58.0f) {
                 Serial.println("Sport+ denied: Battery voltage too low");
                 return false;
             }
-            
+
             if (current > 18.0f) {
                 Serial.println("Sport+ denied: System under high load");
                 return false;
             }
         }
     }
-    
+
     return true;
 }
 

@@ -208,7 +208,7 @@ enum ScreenType {
 // ========================================
 // DEBOUNCE TIMES
 // ========================================
-#define BUTTON_DEBOUNCE_MS      50
+#define BUTTON_DEBOUNCE_MS      150     // Increased from 50ms - prevents gear shift bounce
 #define ENCODER_DEBOUNCE_MS     20
 
 #endif // CONFIG_H
