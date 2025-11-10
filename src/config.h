@@ -17,7 +17,7 @@
 #define GPIO_MOTOR_DIR_RIGHT    23  // Changed from 4
 
 // Sensors
-#define GPIO_PEDAL_ADC          4   // Changed: Use GPIO4 with voltage divider (0-3.3V)
+#define GPIO_PEDAL_ADC          36  // GPIO36 (ADC1_CH0) - Works with WiFi (ADC2 conflicts with WiFi)
 #define GPIO_KEY_SWITCH         15
 
 // User Interface
