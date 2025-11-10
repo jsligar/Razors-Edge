@@ -122,23 +122,35 @@ void UserInterface::handleEncoderRotation(int16_t delta) {
     // Different behavior depending on current screen
     switch (currentScreen) {
         case SCREEN_SETTINGS:
-            // On settings screen, adjust selected setting
-            selectedSettingIndex = (selectedSettingIndex + delta) % 3; // 3 example settings
-            if (selectedSettingIndex < 0) selectedSettingIndex += 3;
-            settingAdjustmentValue += delta;
+            // On settings screen, adjust brightness or light mode based on rotation
+            if (delta > 0) {
+                // Clockwise: Increase brightness or advance light mode
+                if (displayBrightness < 100) {
+                    displayBrightness += 25;
+                    if (displayBrightness > 100) displayBrightness = 100;
+                    Serial.printf("Display brightness: %d%%\n", displayBrightness);
+                }
+            } else if (delta < 0) {
+                // Counter-clockwise: Decrease brightness
+                if (displayBrightness > 25) {
+                    displayBrightness -= 25;
+                    if (displayBrightness < 25) displayBrightness = 25;
+                    Serial.printf("Display brightness: %d%%\n", displayBrightness);
+                }
+            }
             break;
-            
+
         case SCREEN_MAIN_DRIVE:
         case SCREEN_DETAILED_METRICS:
-            // Could scroll through info pages or adjust brightness
+            // Could scroll through info or adjust display settings
             // For now, just log it
             break;
-            
+
         case SCREEN_CALIBRATION:
             // Adjust calibration values
             settingAdjustmentValue += delta * 10; // Larger steps for calibration
             break;
-            
+
         default:
             break;
     }
@@ -346,12 +358,12 @@ void UserInterface::drawSettingsScreen() {
     display.setCursor(0, 23);
     display.println("--------------");
 
-    // Display current settings (adjustable with buttons A & B)
+    // Display current settings
     display.setCursor(0, 33);
-    display.printf("A: Bright %d%%", displayBrightness);
+    display.printf("Bright: %d%%", displayBrightness);
 
     display.setCursor(0, 43);
-    display.print("B: Lights ");
+    display.print("Lights: ");
     switch (lightMode) {
         case LIGHT_OFF:      display.print("OFF"); break;
         case LIGHT_AUTO:     display.print("AUTO"); break;
@@ -360,7 +372,7 @@ void UserInterface::drawSettingsScreen() {
     }
 
     display.setCursor(0, 53);
-    display.println("Encoder: Screens");
+    display.println("Encoder: Bright");
 
     if (calibrationUnlocked) {
         display.setCursor(0, 25);
