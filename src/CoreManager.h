@@ -137,7 +137,9 @@ public:
     // Data access (thread-safe)
     SharedSystemData getSharedData();
     void updateSharedData();
-    
+    void clearShiftUpFlag();
+    void clearShiftDownFlag();
+
     // Performance monitoring
     void printTaskStats();
     uint32_t getLoopRate();

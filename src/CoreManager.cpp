@@ -468,6 +468,18 @@ void CoreManager::updateSharedData() {
     unlockData();
 }
 
+void CoreManager::clearShiftUpFlag() {
+    lockData();
+    sharedData.shiftUpPressed = false;
+    unlockData();
+}
+
+void CoreManager::clearShiftDownFlag() {
+    lockData();
+    sharedData.shiftDownPressed = false;
+    unlockData();
+}
+
 void CoreManager::triggerEmergencyStop() {
     bool emergency = true;
     xQueueSend(emergencyQueue, &emergency, 0);

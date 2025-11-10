@@ -163,11 +163,15 @@ void loop() {
     if (sysData.shiftUpPressed) {
         stateMachine.handleShiftUp();
         Serial.println("Shift UP requested");
+        // Clear the flag so it doesn't retrigger
+        coreManager.clearShiftUpFlag();
     }
 
     if (sysData.shiftDownPressed) {
         stateMachine.handleShiftDown();
         Serial.println("Shift DOWN requested");
+        // Clear the flag so it doesn't retrigger
+        coreManager.clearShiftDownFlag();
     }
 
     // Update state machine coordination
