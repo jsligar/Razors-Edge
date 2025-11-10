@@ -9,6 +9,8 @@ struct EncoderState {
     int16_t lastPosition;
     bool buttonPressed;
     bool buttonChanged;
+    unsigned long lastRotationTime;     // For debouncing rotation
+    unsigned long lastButtonChangeTime; // For debouncing button
 };
 
 struct ButtonState {

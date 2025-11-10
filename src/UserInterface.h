@@ -38,6 +38,13 @@ public:
     void setBatterySOC(float percent);
     void setMotorData(float leftCurrent, float rightCurrent, float imbalance);
     void setGPSData(uint8_t satellites, bool fixed);
+    void setGPSCoordinates(double latitude, double longitude);
+
+    // Button handlers (A = brightness, B = light mode)
+    void handleButtonA();  // Brightness control
+    void handleButtonB();  // Light mode control
+    uint8_t getBrightness();
+    LightMode getLightMode();
     
 private:
     // Display hardware
@@ -61,6 +68,12 @@ private:
     float motorImbalance;
     uint8_t gpsSatellites;
     bool gpsFixed;
+    double gpsLatitude;
+    double gpsLongitude;
+
+    // User adjustable settings
+    uint8_t displayBrightness;  // 0-100%
+    LightMode lightMode;
     
     // Animation state
     bool gearChangeAnimation;

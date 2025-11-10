@@ -1,4 +1,5 @@
 #include "UserInterface.h"
+#include "MGRSConverter.h"
 
 UserInterface::UserInterface() :
     displayReady(false),
@@ -16,6 +17,10 @@ UserInterface::UserInterface() :
     motorImbalance(0.0f),
     gpsSatellites(0),
     gpsFixed(false),
+    gpsLatitude(0.0),
+    gpsLongitude(0.0),
+    displayBrightness(100),
+    lightMode(LIGHT_AUTO),
     gearChangeAnimation(false),
     gearChangeStartTime(0),
     animationGear(GEAR_PARK),
@@ -163,18 +168,17 @@ ScreenType UserInterface::getCurrentScreen() {
 
 void UserInterface::showStartupMessage() {
     if (!displayReady) return;
-    
+
     display.clearDisplay();
-    display.setTextSize(2);
-    display.setCursor(10, 15);
-    display.println("RAZOR 60V");
     display.setTextSize(1);
-    display.setCursor(15, 35);
+    display.setCursor(10, 10);
+    display.println("NerdBillyFab");
+    display.setTextSize(2);
+    display.setCursor(15, 25);
+    display.println("RAZOR");
+    display.setTextSize(1);
+    display.setCursor(30, 45);
     display.println("Initializing...");
-    display.setCursor(5, 45);
-    display.println("Press encoder 5x");
-    display.setCursor(15, 55);
-    display.println("for calibration");
     display.display();
 }
 
@@ -220,6 +224,56 @@ void UserInterface::setGPSData(uint8_t satellites, bool fixed) {
     gpsFixed = fixed;
 }
 
+void UserInterface::setGPSCoordinates(double latitude, double longitude) {
+    gpsLatitude = latitude;
+    gpsLongitude = longitude;
+}
+
+void UserInterface::handleButtonA() {
+    // Button A: Cycle brightness levels (25%, 50%, 75%, 100%)
+    if (displayBrightness == 100) {
+        displayBrightness = 25;
+    } else if (displayBrightness == 25) {
+        displayBrightness = 50;
+    } else if (displayBrightness == 50) {
+        displayBrightness = 75;
+    } else {
+        displayBrightness = 100;
+    }
+
+    Serial.printf("Display brightness: %d%%\n", displayBrightness);
+}
+
+void UserInterface::handleButtonB() {
+    // Button B: Cycle light modes (OFF → AUTO → ALWAYS_ON → DIM → OFF)
+    switch (lightMode) {
+        case LIGHT_OFF:
+            lightMode = LIGHT_AUTO;
+            Serial.println("Light mode: AUTO");
+            break;
+        case LIGHT_AUTO:
+            lightMode = LIGHT_ALWAYS_ON;
+            Serial.println("Light mode: ALWAYS ON");
+            break;
+        case LIGHT_ALWAYS_ON:
+            lightMode = LIGHT_DIM;
+            Serial.println("Light mode: DIM");
+            break;
+        case LIGHT_DIM:
+            lightMode = LIGHT_OFF;
+            Serial.println("Light mode: OFF");
+            break;
+    }
+}
+
+uint8_t UserInterface::getBrightness() {
+    return displayBrightness;
+}
+
+LightMode UserInterface::getLightMode() {
+    return lightMode;
+}
+
 void UserInterface::drawMainDriveScreen() {
     // Header
     drawHeader();
@@ -256,53 +310,58 @@ void UserInterface::drawMainDriveScreen() {
 
 void UserInterface::drawDetailedMetricsScreen() {
     drawHeader();
-    
+
+    // GPS Coordinates in MGRS format
+    if (gpsFixed && gpsLatitude != 0.0 && gpsLongitude != 0.0) {
+        String mgrs = MGRSConverter::latLonToMGRS(gpsLatitude, gpsLongitude, 3);
+        display.setCursor(0, 15);
+        display.printf("GPS: %s", mgrs.c_str());
+    } else {
+        display.setCursor(0, 15);
+        display.println("GPS: NO FIX");
+    }
+
     // Motor currents
-    display.setCursor(0, 15);
-    display.printf("L Motor: %.1fA", motorLeftCurrent);
-    
     display.setCursor(0, 25);
-    display.printf("R Motor: %.1fA", motorRightCurrent);
-    
+    display.printf("L:%.1fA R:%.1fA", motorLeftCurrent, motorRightCurrent);
+
     // Motor imbalance
     display.setCursor(0, 35);
     display.printf("Balance: %.1f%%", motorImbalance);
-    
-    // Power and efficiency
+
+    // Power
     display.setCursor(0, 45);
     display.printf("Power: %.0fW", batteryPower);
-    
+
+    // Battery SOC
     display.setCursor(0, 55);
     display.printf("SOC: %.0f%%", batterySOC);
 }
 
 void UserInterface::drawSettingsScreen() {
     drawHeader();
-    
+
     display.setCursor(0, 15);
-    display.println("Settings Menu");
-    display.setCursor(0, 25);
+    display.println("Settings");
+    display.setCursor(0, 23);
     display.println("--------------");
-    
-    // Display adjustable settings with selection indicator
-    const char* settings[] = {"Brightness", "Speed Limit", "Regen Level"};
-    
-    for (int i = 0; i < 3; i++) {
-        display.setCursor(0, 35 + i * 10);
-        if (i == selectedSettingIndex) {
-            display.print("> ");
-        } else {
-            display.print("  ");
-        }
-        display.print(settings[i]);
-        
-        // Show adjustment value for selected item
-        if (i == selectedSettingIndex) {
-            display.print(": ");
-            display.print(settingAdjustmentValue);
-        }
+
+    // Display current settings (adjustable with buttons A & B)
+    display.setCursor(0, 33);
+    display.printf("A: Bright %d%%", displayBrightness);
+
+    display.setCursor(0, 43);
+    display.print("B: Lights ");
+    switch (lightMode) {
+        case LIGHT_OFF:      display.print("OFF"); break;
+        case LIGHT_AUTO:     display.print("AUTO"); break;
+        case LIGHT_ALWAYS_ON: display.print("ON"); break;
+        case LIGHT_DIM:      display.print("DIM"); break;
     }
-    
+
+    display.setCursor(0, 53);
+    display.println("Encoder: Screens");
+
     if (calibrationUnlocked) {
         display.setCursor(0, 25);
         display.println(">>> CALIBRATION <<<");

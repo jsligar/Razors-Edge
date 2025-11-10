@@ -147,17 +147,27 @@ enum LightMode {
 };
 
 // Light Zone Assignments (PCA9685 channels - single board at 0x40)
-// Main Lighting
-#define LIGHT_FRONT_LEFT        12      // Main front left headlight
-#define LIGHT_FRONT_RIGHT       13      // Main front right headlight
-#define LIGHT_REAR_LEFT         14      // Main rear left taillight
-#define LIGHT_REAR_RIGHT        15      // Main rear right taillight
+// Main Headlights (4 independent headlights)
+#define LIGHT_HEAD_1            0       // Headlight zone 1
+#define LIGHT_HEAD_2            1       // Headlight zone 2
+#define LIGHT_HEAD_3            2       // Headlight zone 3
+#define LIGHT_HEAD_4            3       // Headlight zone 4
+
+// Center Light
+#define LIGHT_CENTER            4       // Big center light
+
+// Tail Lights
+#define LIGHT_TAIL_LEFT         5       // Left tail light
+#define LIGHT_TAIL_RIGHT        6       // Right tail light
 
 // Precision Lighting (4 additional channels)
-#define LIGHT_TURN_LEFT         8       // Left turn signal (front + rear)
-#define LIGHT_TURN_RIGHT        9       // Right turn signal (front + rear)
+#define LIGHT_TURN_LEFT         8       // Left turn signal
+#define LIGHT_TURN_RIGHT        9       // Right turn signal
 #define LIGHT_BRAKE             10      // Brake lights (high intensity)
 #define LIGHT_REVERSE           11      // Reverse/backup lights
+
+// Total lights in use: channels 0-6 (main), 8-11 (auxiliary)
+#define TOTAL_MAIN_LIGHTS       7       // For startup sequence
 
 // ========================================
 // DISPLAY CONFIGURATION
