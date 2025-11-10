@@ -405,8 +405,10 @@ void CoreManager::runUserInterfaceTask() {
             ui->setCurrent(sharedData.batteryCurrent);
             ui->setPower(sharedData.batteryPower);
             ui->setBatterySOC(sharedData.batterySOC);
+            ui->setSpeed(sharedData.gpsSpeed);
             ui->setMotorData(sharedData.motorCurrentLeft, sharedData.motorCurrentRight, 0);
             ui->setGPSData(sharedData.satellites, sharedData.gpsFixed);
+            ui->setGPSCoordinates(sharedData.latitude, sharedData.longitude);
             unlockData();
 
             ui->update();
