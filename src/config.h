@@ -35,9 +35,9 @@
 // I2C DEVICE ADDRESSES
 // ========================================
 #define INA228_BATTERY_ADDR     0x45    // MATEKSYS INA-BM (decimal 69)
-#define INA228_MOTOR_LEFT_ADDR  0x40    // Left motor current monitor (changed from 0x41)
-#define INA228_MOTOR_RIGHT_ADDR 0x42    // Right motor current monitor (changed from 0x44)
-#define PCA9685_ADDR            0x70    // 16-channel PWM driver
+#define INA228_MOTOR_LEFT_ADDR  0x41    // Left motor current monitor
+#define INA228_MOTOR_RIGHT_ADDR 0x44    // Right motor current monitor
+#define PCA9685_ADDR            0x40    // 16-channel PWM driver (default address)
 #define SSD1306_ADDR            0x3C    // OLED display
 
 // ========================================
@@ -147,10 +147,10 @@ enum LightMode {
 };
 
 // Light Zone Assignments (PCA9685 channels)
-#define LIGHT_FRONT_LEFT        0
-#define LIGHT_FRONT_RIGHT       1
-#define LIGHT_REAR_LEFT         2
-#define LIGHT_REAR_RIGHT        3
+#define LIGHT_FRONT_LEFT        12
+#define LIGHT_FRONT_RIGHT       13
+#define LIGHT_REAR_LEFT         14
+#define LIGHT_REAR_RIGHT        15
 
 // ========================================
 // DISPLAY CONFIGURATION
