@@ -455,7 +455,8 @@ void StateMachine::executeGearChange(GearMode newGear) {
     
     // Update user interface
     if (userInterface) {
-        userInterface->showGearChange(newGear);
+        userInterface->setGear(newGear);  // Update the displayed gear
+        userInterface->showGearChange(newGear);  // Trigger animation
     }
     
     // Update lights
