@@ -146,11 +146,18 @@ enum LightMode {
     LIGHT_DIM
 };
 
-// Light Zone Assignments (PCA9685 channels)
-#define LIGHT_FRONT_LEFT        12
-#define LIGHT_FRONT_RIGHT       13
-#define LIGHT_REAR_LEFT         14
-#define LIGHT_REAR_RIGHT        15
+// Light Zone Assignments (PCA9685 channels - single board at 0x40)
+// Main Lighting
+#define LIGHT_FRONT_LEFT        12      // Main front left headlight
+#define LIGHT_FRONT_RIGHT       13      // Main front right headlight
+#define LIGHT_REAR_LEFT         14      // Main rear left taillight
+#define LIGHT_REAR_RIGHT        15      // Main rear right taillight
+
+// Precision Lighting (4 additional channels)
+#define LIGHT_TURN_LEFT         8       // Left turn signal (front + rear)
+#define LIGHT_TURN_RIGHT        9       // Right turn signal (front + rear)
+#define LIGHT_BRAKE             10      // Brake lights (high intensity)
+#define LIGHT_REVERSE           11      // Reverse/backup lights
 
 // ========================================
 // DISPLAY CONFIGURATION
