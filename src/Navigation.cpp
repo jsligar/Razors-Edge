@@ -8,7 +8,9 @@ Navigation::Navigation() :
     lastPositionValid(false),
     tripStartTime(0),
     motorSpeed(0.0f),
-    lastMotorSpeedUpdate(0)
+    lastMotorSpeedUpdate(0),
+    filteredSpeed(0.0f),
+    speedSmoothingFactor(0.25f)  // 0.25 = heavy smoothing, good for display
 {
     // Initialize GPS data structure
     currentData.isValid = false;
@@ -19,7 +21,7 @@ Navigation::Navigation() :
     currentData.course = 0.0;
     currentData.satellites = 0;
     currentData.hdop = 99.9;
-    
+
     // Initialize trip data
     tripData.odometer = 0.0f;
     tripData.tripMeter = 0.0f;
@@ -61,7 +63,7 @@ void Navigation::update() {
 
 float Navigation::getSpeed() {
     if (!isDataFresh()) return 0.0f;
-    return currentData.speed;
+    return filteredSpeed;  // Return smoothed speed for display
 }
 
 float Navigation::getSpeedKmh() {
@@ -193,8 +195,17 @@ void Navigation::processSentences() {
         float newSpeed = gps.speed.mph();
         if (isSpeedValid(newSpeed)) {
             currentData.speed = newSpeed;
-            
-            // Update max speed for trip
+
+            // Apply exponential moving average filter for smooth display
+            // filteredSpeed = alpha * newSpeed + (1 - alpha) * previousFilteredSpeed
+            filteredSpeed = speedSmoothingFactor * newSpeed + (1.0f - speedSmoothingFactor) * filteredSpeed;
+
+            // Snap to zero if very low speed (prevents slow creep)
+            if (filteredSpeed < 0.5f) {
+                filteredSpeed = 0.0f;
+            }
+
+            // Update max speed for trip (use raw speed for accuracy)
             if (newSpeed > tripData.maxSpeed) {
                 tripData.maxSpeed = newSpeed;
             }

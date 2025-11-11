@@ -92,7 +92,11 @@ private:
     // Current GPS data
     GPSData currentData;
     unsigned long lastValidUpdate;
-    
+
+    // Speed smoothing filter
+    float filteredSpeed;
+    float speedSmoothingFactor;  // 0.0-1.0, lower = more smoothing
+
     // Trip tracking
     TripData tripData;
     double lastValidLat;
