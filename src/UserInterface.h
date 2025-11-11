@@ -39,6 +39,8 @@ public:
     void setMotorData(float leftCurrent, float rightCurrent, float imbalance);
     void setGPSData(uint8_t satellites, bool fixed);
     void setGPSCoordinates(double latitude, double longitude);
+    void setNavigationData(float bearing, float distance, float course);
+    void setHomePosition(double lat, double lon);
 
     // Button handlers (A = brightness, B = light mode)
     void handleButtonA();  // Brightness control
@@ -71,6 +73,14 @@ private:
     double gpsLatitude;
     double gpsLongitude;
 
+    // Navigation data
+    float bearingToHome;     // Degrees to home
+    float distanceToHome;    // Miles to home
+    float currentCourse;     // Current heading in degrees
+    double homeLat;
+    double homeLon;
+    bool homePositionSet;
+
     // User adjustable settings
     uint8_t displayBrightness;  // 0-100%
     LightMode lightMode;
@@ -92,17 +102,19 @@ private:
     // Screen drawing methods
     void drawMainDriveScreen();
     void drawDetailedMetricsScreen();
+    void drawNavigationScreen();
     void drawSettingsScreen();
     void drawWarningScreen();
     void drawCalibrationScreen();
-    
+
     // Helper drawing methods
     void drawHeader();
     void drawGearIndicator(int16_t x, int16_t y, GearMode gear, bool large = false);
     void drawBatteryGauge(int16_t x, int16_t y, float percent);
     void drawProgressBar(int16_t x, int16_t y, int16_t width, int16_t height, float percent);
     void drawValue(int16_t x, int16_t y, float value, const char* unit, uint8_t decimals = 1);
-    
+    void drawCompassNeedle(int16_t centerX, int16_t centerY, int16_t radius, float angle);
+
     // Animation methods
     void updateGearChangeAnimation();
     void updateWarningAnimation();

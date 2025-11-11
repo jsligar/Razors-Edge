@@ -19,6 +19,12 @@ UserInterface::UserInterface() :
     gpsFixed(false),
     gpsLatitude(0.0),
     gpsLongitude(0.0),
+    bearingToHome(0.0f),
+    distanceToHome(0.0f),
+    currentCourse(0.0f),
+    homeLat(0.0),
+    homeLon(0.0),
+    homePositionSet(false),
     displayBrightness(100),
     lightMode(LIGHT_AUTO),
     gearChangeAnimation(false),
@@ -72,6 +78,9 @@ void UserInterface::update() {
         case SCREEN_DETAILED_METRICS:
             drawDetailedMetricsScreen();
             break;
+        case SCREEN_NAVIGATION:
+            drawNavigationScreen();
+            break;
         case SCREEN_SETTINGS:
             drawSettingsScreen();
             break;
@@ -99,6 +108,9 @@ void UserInterface::cycleScreen() {
             currentScreen = SCREEN_DETAILED_METRICS;
             break;
         case SCREEN_DETAILED_METRICS:
+            currentScreen = SCREEN_NAVIGATION;
+            break;
+        case SCREEN_NAVIGATION:
             currentScreen = SCREEN_SETTINGS;
             break;
         case SCREEN_SETTINGS:
@@ -239,6 +251,19 @@ void UserInterface::setGPSData(uint8_t satellites, bool fixed) {
 void UserInterface::setGPSCoordinates(double latitude, double longitude) {
     gpsLatitude = latitude;
     gpsLongitude = longitude;
+}
+
+void UserInterface::setNavigationData(float bearing, float distance, float course) {
+    bearingToHome = bearing;
+    distanceToHome = distance;
+    currentCourse = course;
+}
+
+void UserInterface::setHomePosition(double lat, double lon) {
+    homeLat = lat;
+    homeLon = lon;
+    homePositionSet = true;
+    Serial.printf("Home position set: %.6f, %.6f\n", lat, lon);
 }
 
 void UserInterface::handleButtonA() {
@@ -384,18 +409,83 @@ void UserInterface::drawSettingsScreen() {
     }
 }
 
+void UserInterface::drawNavigationScreen() {
+    drawHeader();
+
+    // Screen title
+    display.setCursor(0, 15);
+    display.println("Navigation");
+
+    if (!homePositionSet) {
+        // Show message to set home position
+        display.setCursor(0, 30);
+        display.println("No home position");
+        display.setCursor(0, 45);
+        display.println("Set in web UI");
+        return;
+    }
+
+    if (!gpsFixed) {
+        // Show waiting for GPS message
+        display.setCursor(0, 30);
+        display.println("Waiting for GPS");
+        display.setCursor(0, 45);
+        display.printf("Sats: %d", gpsSatellites);
+        return;
+    }
+
+    // Draw compass circle (centered, larger)
+    int16_t compassX = 64;
+    int16_t compassY = 38;
+    int16_t compassRadius = 20;
+
+    // Draw compass circle
+    display.drawCircle(compassX, compassY, compassRadius, SSD1306_WHITE);
+    display.drawCircle(compassX, compassY, compassRadius - 1, SSD1306_WHITE);
+
+    // Draw cardinal directions (N, E, S, W)
+    display.setTextSize(1);
+    display.setCursor(compassX - 3, compassY - compassRadius - 9);
+    display.print("N");
+    display.setCursor(compassX + compassRadius + 3, compassY - 3);
+    display.print("E");
+    display.setCursor(compassX - 3, compassY + compassRadius + 2);
+    display.print("S");
+    display.setCursor(compassX - compassRadius - 8, compassY - 3);
+    display.print("W");
+
+    // Calculate needle angle (bearing to home minus current course)
+    // This gives us the relative bearing (where home is relative to our heading)
+    float relativeAngle = bearingToHome - currentCourse;
+
+    // Normalize angle to -180 to 180
+    while (relativeAngle > 180.0f) relativeAngle -= 360.0f;
+    while (relativeAngle < -180.0f) relativeAngle += 360.0f;
+
+    // Draw the needle pointing to home
+    drawCompassNeedle(compassX, compassY, compassRadius - 3, relativeAngle);
+
+    // Display distance to home
+    display.setCursor(0, 56);
+    if (distanceToHome < 1.0f) {
+        display.printf("Home: %.0fft", distanceToHome * 5280.0f);  // Show in feet if < 1 mile
+    } else {
+        display.printf("Home: %.1fmi", distanceToHome);
+    }
+}
+
 void UserInterface::drawWarningScreen() {
     drawHeader();
-    
+
     // Flash warning message
     unsigned long elapsed = millis() - warningStartTime;
     bool flashOn = (elapsed / 500) % 2 == 0;
-    
+
     if (flashOn) {
         display.setTextSize(2);
         display.setCursor(10, 20);
         display.println("WARNING");
-        
+
         display.setTextSize(1);
         display.setCursor(0, 45);
         display.println("System Fault");
@@ -472,6 +562,38 @@ void UserInterface::drawValue(int16_t x, int16_t y, float value, const char* uni
     } else {
         display.printf("%.2f%s", value, unit);
     }
+}
+
+void UserInterface::drawCompassNeedle(int16_t centerX, int16_t centerY, int16_t radius, float angle) {
+    // Convert angle to radians (0° = North, clockwise)
+    // Screen coordinates: 0° = up, 90° = right, 180° = down, 270° = left
+    float radians = (angle - 90.0f) * PI / 180.0f;
+
+    // Calculate needle tip (pointing to home)
+    int16_t tipX = centerX + radius * cos(radians);
+    int16_t tipY = centerY + radius * sin(radians);
+
+    // Calculate needle base (opposite direction, shorter)
+    int16_t baseRadius = radius / 4;
+    int16_t baseX = centerX - baseRadius * cos(radians);
+    int16_t baseY = centerY - baseRadius * sin(radians);
+
+    // Calculate arrow wings for tip
+    float wingAngle1 = radians + 2.8f;  // ~160 degrees back
+    float wingAngle2 = radians - 2.8f;
+    int16_t wingRadius = radius / 3;
+    int16_t wing1X = centerX + wingRadius * cos(wingAngle1);
+    int16_t wing1Y = centerY + wingRadius * sin(wingAngle1);
+    int16_t wing2X = centerX + wingRadius * cos(wingAngle2);
+    int16_t wing2Y = centerY + wingRadius * sin(wingAngle2);
+
+    // Draw arrow needle
+    display.drawLine(baseX, baseY, tipX, tipY, SSD1306_WHITE);  // Main shaft
+    display.drawLine(tipX, tipY, wing1X, wing1Y, SSD1306_WHITE);  // Arrow wing 1
+    display.drawLine(tipX, tipY, wing2X, wing2Y, SSD1306_WHITE);  // Arrow wing 2
+
+    // Draw center dot
+    display.fillCircle(centerX, centerY, 2, SSD1306_WHITE);
 }
 
 void UserInterface::updateGearChangeAnimation() {

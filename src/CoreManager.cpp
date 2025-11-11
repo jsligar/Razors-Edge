@@ -411,6 +411,14 @@ void CoreManager::runUserInterfaceTask() {
             ui->setGPSCoordinates(sharedData.latitude, sharedData.longitude);
             unlockData();
 
+            // Update navigation data (call directly from navigation, not shared data)
+            if (navigation) {
+                float bearing = navigation->getBearingToHome();
+                float distance = navigation->getDistanceToHome();
+                float course = navigation->getCourse();
+                ui->setNavigationData(bearing, distance, course);
+            }
+
             ui->update();
         }
         
