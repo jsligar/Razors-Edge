@@ -90,12 +90,17 @@ private:
     bool gearChangeAnimation;
     unsigned long gearChangeStartTime;
     GearMode animationGear;
-    
+
+    // Screen transition
+    ScreenType previousScreen;
+    unsigned long screenTransitionStartTime;
+    bool screenTransitioning;
+
     // Calibration access
     uint8_t encoderPressCount;
     unsigned long lastEncoderPress;
     bool calibrationUnlocked;
-    
+
     // Settings adjustment
     uint8_t selectedSettingIndex;
     int16_t settingAdjustmentValue;
@@ -115,10 +120,13 @@ private:
     void drawProgressBar(int16_t x, int16_t y, int16_t width, int16_t height, float percent);
     void drawValue(int16_t x, int16_t y, float value, const char* unit, uint8_t decimals = 1);
     void drawCompassNeedle(int16_t centerX, int16_t centerY, int16_t radius, float angle);
+    void drawSpeedometerArc(int16_t centerX, int16_t centerY, int16_t radius, float speed, float maxSpeed);
+    void drawIcon(int16_t x, int16_t y, const char* iconType);
 
     // Animation methods
     void updateGearChangeAnimation();
     void updateWarningAnimation();
+    void updateScreenTransition();
     
     // Utility methods
     const char* getFaultString(uint8_t faultCode);

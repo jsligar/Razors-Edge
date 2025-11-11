@@ -30,6 +30,9 @@ UserInterface::UserInterface() :
     gearChangeAnimation(false),
     gearChangeStartTime(0),
     animationGear(GEAR_PARK),
+    previousScreen(SCREEN_MAIN_DRIVE),
+    screenTransitionStartTime(0),
+    screenTransitioning(false),
     encoderPressCount(0),
     lastEncoderPress(0),
     calibrationUnlocked(false),
@@ -64,13 +67,13 @@ bool UserInterface::init() {
 
 void UserInterface::update() {
     if (!displayReady) return;
-    
-    updateGearChangeAnimation();
+
     updateWarningAnimation();
-    
+    updateScreenTransition();
+
     // Draw current screen
     display.clearDisplay();
-    
+
     switch (currentScreen) {
         case SCREEN_MAIN_DRIVE:
             drawMainDriveScreen();
@@ -91,7 +94,10 @@ void UserInterface::update() {
             drawCalibrationScreen();
             break;
     }
-    
+
+    // Draw gear change animation overlay (on top of everything)
+    updateGearChangeAnimation();
+
     display.display();
 }
 
@@ -102,7 +108,12 @@ void UserInterface::setScreen(ScreenType type) {
 void UserInterface::cycleScreen() {
     // Check for calibration sequence first
     checkCalibrationSequence();
-    
+
+    // Start screen transition
+    previousScreen = currentScreen;
+    screenTransitioning = true;
+    screenTransitionStartTime = millis();
+
     switch (currentScreen) {
         case SCREEN_MAIN_DRIVE:
             currentScreen = SCREEN_DETAILED_METRICS;
@@ -126,6 +137,7 @@ void UserInterface::cycleScreen() {
             break;
         case SCREEN_WARNING:
             // Don't cycle from warning screen
+            screenTransitioning = false;
             break;
     }
 }
@@ -377,32 +389,35 @@ LightMode UserInterface::getLightMode() {
 void UserInterface::drawMainDriveScreen() {
     // Header
     drawHeader();
-    
-    // Large speed display
-    display.setTextSize(3);
-    display.setCursor(10, 20);
+
+    // Speedometer arc (centered on left side)
+    int16_t speedArcX = 32;
+    int16_t speedArcY = 38;
+    int16_t speedArcRadius = 22;
+    drawSpeedometerArc(speedArcX, speedArcY, speedArcRadius, vehicleSpeed, SPEED_MAX_MPH);
+
+    // Large speed number inside arc
+    display.setTextSize(2);
+    display.setCursor(speedArcX - 12, speedArcY - 5);
     display.printf("%.0f", vehicleSpeed);
+
+    // MPH label below
     display.setTextSize(1);
-    display.setCursor(70, 30);
+    display.setCursor(speedArcX - 8, speedArcY + 10);
     display.println("MPH");
-    
-    // Gear indicator (large)
-    drawGearIndicator(90, 15, currentGear, true);
-    
-    // Battery info
-    display.setCursor(0, 45);
-    display.printf("%.1fV", batteryVoltage);
-    
-    display.setCursor(40, 45);
-    display.printf("%.1fA", batteryCurrent);
-    
-    // Battery gauge
-    drawBatteryGauge(0, 55, batterySOC);
-    
-    // GPS status
+
+    // Gear indicator (right side, large)
+    drawGearIndicator(90, 20, currentGear, true);
+
+    // Battery gauge with icon (bottom)
+    drawIcon(0, 55, "battery");
+    drawBatteryGauge(10, 55, batterySOC);
+
+    // GPS status with icon
     display.setCursor(90, 55);
     if (gpsFixed) {
-        display.printf("GPS:%d", gpsSatellites);
+        drawIcon(85, 55, "gps");
+        display.printf("%d", gpsSatellites);
     } else {
         display.println("NO GPS");
     }
@@ -540,39 +555,61 @@ void UserInterface::drawNavigationScreen() {
 void UserInterface::drawWarningScreen() {
     drawHeader();
 
-    // Flash warning message
+    // Pulsing border animation
     unsigned long elapsed = millis() - warningStartTime;
     bool flashOn = (elapsed / 500) % 2 == 0;
 
+    // Draw pulsing double border
     if (flashOn) {
-        display.setTextSize(2);
-        display.setCursor(10, 20);
-        display.println("WARNING");
+        display.drawRect(0, 10, DISPLAY_WIDTH, DISPLAY_HEIGHT - 10, SSD1306_WHITE);
+        display.drawRect(2, 12, DISPLAY_WIDTH - 4, DISPLAY_HEIGHT - 14, SSD1306_WHITE);
+    }
 
+    // Warning icon (triangle with !)
+    if (flashOn) {
+        int16_t iconX = 64;
+        int16_t iconY = 25;
+        // Triangle
+        display.drawLine(iconX, iconY - 8, iconX - 8, iconY + 8, SSD1306_WHITE);
+        display.drawLine(iconX, iconY - 8, iconX + 8, iconY + 8, SSD1306_WHITE);
+        display.drawLine(iconX - 8, iconY + 8, iconX + 8, iconY + 8, SSD1306_WHITE);
+        // Exclamation mark
+        display.drawLine(iconX, iconY - 4, iconX, iconY + 2, SSD1306_WHITE);
+        display.drawPixel(iconX, iconY + 5, SSD1306_WHITE);
+    }
+
+    // Flash warning message
+    if (flashOn) {
         display.setTextSize(1);
-        display.setCursor(0, 45);
+        display.setCursor(25, 45);
         display.println("System Fault");
-        display.setCursor(0, 55);
+        display.setCursor(22, 55);
         display.println("Check Status");
     }
 }
 
 void UserInterface::drawHeader() {
-    // Top status line
+    // Gear with icon
+    display.setTextSize(1);
     display.setCursor(0, 0);
     display.printf("G:%s", GEAR_CONFIGS[currentGear].name);
-    
-    display.setCursor(50, 0);
+
+    // Battery voltage with icon
+    drawIcon(40, 0, "battery");
+    display.setCursor(48, 0);
     display.printf("%.1fV", batteryVoltage);
-    
-    display.setCursor(90, 0);
+
+    // GPS status with icon
     if (gpsFixed) {
-        display.println("GPS");
+        drawIcon(90, 0, "gps");
+        display.setCursor(98, 0);
+        display.printf("%d", gpsSatellites);
     } else {
+        display.setCursor(95, 0);
         display.println("---");
     }
-    
-    // Horizontal line
+
+    // Horizontal line with slight padding
     display.drawLine(0, 8, DISPLAY_WIDTH, 8, SSD1306_WHITE);
 }
 
@@ -590,18 +627,33 @@ void UserInterface::drawGearIndicator(int16_t x, int16_t y, GearMode gear, bool 
 }
 
 void UserInterface::drawBatteryGauge(int16_t x, int16_t y, float percent) {
-    // Battery outline
-    display.drawRect(x, y, 60, 8, SSD1306_WHITE);
-    display.drawRect(x + 60, y + 2, 3, 4, SSD1306_WHITE);
-    
+    // Battery outline (no terminal on right side - cleaner look)
+    display.drawRect(x, y, 50, 8, SSD1306_WHITE);
+
     // Fill based on percentage
-    int16_t fillWidth = (percent / 100.0f) * 58;
+    int16_t fillWidth = (percent / 100.0f) * 48;
     if (fillWidth > 0) {
         display.fillRect(x + 1, y + 1, fillWidth, 6, SSD1306_WHITE);
     }
-    
+
+    // Charging animation (moving chevron) if current is negative (regen/charging)
+    if (batteryCurrent < -0.5f) {  // Charging/regen
+        unsigned long animTime = millis() / 200;  // Animation speed
+        int offset = (animTime % 10) * 2;  // Scrolling offset
+
+        // Draw animated chevron pattern inside battery
+        for (int i = 0; i < 3; i++) {
+            int chevronX = x + 5 + (i * 10) - offset;
+            if (chevronX >= x && chevronX < x + 48) {
+                // Inverted chevron (shows as black on white background)
+                display.drawLine(chevronX, y + 2, chevronX + 2, y + 4, SSD1306_BLACK);
+                display.drawLine(chevronX + 2, y + 4, chevronX, y + 6, SSD1306_BLACK);
+            }
+        }
+    }
+
     // Percentage text
-    display.setCursor(x + 65, y);
+    display.setCursor(x + 52, y);
     display.printf("%.0f%%", percent);
 }
 
@@ -659,11 +711,129 @@ void UserInterface::drawCompassNeedle(int16_t centerX, int16_t centerY, int16_t 
     display.fillCircle(centerX, centerY, 2, SSD1306_WHITE);
 }
 
+void UserInterface::drawSpeedometerArc(int16_t centerX, int16_t centerY, int16_t radius, float speed, float maxSpeed) {
+    // Draw arc from 225° to 315° (180° total, bottom semicircle)
+    // 225° = lower left, 270° = bottom, 315° = lower right
+
+    float startAngle = 225.0f;  // Start angle in degrees
+    float endAngle = 315.0f;    // End angle in degrees
+    float totalAngle = endAngle - startAngle;  // 90° total sweep
+
+    // Draw outer arc (discrete points)
+    for (int angle = startAngle; angle <= endAngle; angle += 3) {
+        float radians = angle * PI / 180.0f;
+        int16_t x = centerX + radius * cos(radians);
+        int16_t y = centerY + radius * sin(radians);
+        display.drawPixel(x, y, SSD1306_WHITE);
+    }
+
+    // Draw inner arc
+    for (int angle = startAngle; angle <= endAngle; angle += 3) {
+        float radians = angle * PI / 180.0f;
+        int16_t x = centerX + (radius - 2) * cos(radians);
+        int16_t y = centerY + (radius - 2) * sin(radians);
+        display.drawPixel(x, y, SSD1306_WHITE);
+    }
+
+    // Calculate needle angle based on speed
+    float speedRatio = constrain(speed / maxSpeed, 0.0f, 1.0f);
+    float needleAngle = startAngle + (totalAngle * speedRatio);
+    float needleRadians = needleAngle * PI / 180.0f;
+
+    // Draw needle
+    int16_t needleLength = radius - 4;
+    int16_t needleX = centerX + needleLength * cos(needleRadians);
+    int16_t needleY = centerY + needleLength * sin(needleRadians);
+
+    display.drawLine(centerX, centerY, needleX, needleY, SSD1306_WHITE);
+    display.drawLine(centerX + 1, centerY, needleX + 1, needleY, SSD1306_WHITE);  // Thicker needle
+
+    // Draw tick marks at 0, 25%, 50%, 75%, 100%
+    for (int tick = 0; tick <= 4; tick++) {
+        float tickAngle = startAngle + (totalAngle * tick / 4.0f);
+        float tickRadians = tickAngle * PI / 180.0f;
+        int16_t tickStart = radius - 3;
+        int16_t tickEnd = radius - 6;
+
+        int16_t x1 = centerX + tickStart * cos(tickRadians);
+        int16_t y1 = centerY + tickStart * sin(tickRadians);
+        int16_t x2 = centerX + tickEnd * cos(tickRadians);
+        int16_t y2 = centerY + tickEnd * sin(tickRadians);
+
+        display.drawLine(x1, y1, x2, y2, SSD1306_WHITE);
+    }
+
+    // Center pivot point
+    display.fillCircle(centerX, centerY, 2, SSD1306_WHITE);
+}
+
+void UserInterface::drawIcon(int16_t x, int16_t y, const char* iconType) {
+    // Draw 5x7 pixel icons
+    if (strcmp(iconType, "battery") == 0) {
+        // Battery icon
+        display.drawRect(x, y + 1, 5, 5, SSD1306_WHITE);  // Battery body
+        display.drawPixel(x + 5, y + 2, SSD1306_WHITE);   // Battery terminal
+        display.drawPixel(x + 5, y + 3, SSD1306_WHITE);
+    } else if (strcmp(iconType, "gps") == 0) {
+        // GPS satellite icon (simplified)
+        display.drawCircle(x + 2, y + 3, 2, SSD1306_WHITE);  // Satellite
+        display.drawPixel(x + 1, y + 1, SSD1306_WHITE);      // Signal
+        display.drawPixel(x + 3, y + 1, SSD1306_WHITE);
+    }
+}
+
+void UserInterface::updateScreenTransition() {
+    if (!screenTransitioning) return;
+
+    unsigned long elapsed = millis() - screenTransitionStartTime;
+    if (elapsed > 200) {  // 200ms transition
+        screenTransitioning = false;
+    }
+
+    // Could add slide/fade effects here in the future
+    // For now, just a simple flag to control transition timing
+}
+
 void UserInterface::updateGearChangeAnimation() {
     if (!gearChangeAnimation) return;
-    
+
     unsigned long elapsed = millis() - gearChangeStartTime;
-    if (elapsed > 1000) { // 1 second animation
+
+    // Show gear change overlay for 800ms
+    if (elapsed < 800) {
+        // Slide in from right animation
+        int slideOffset = 128 - (elapsed * 128 / 200);  // Slides in over 200ms
+        if (slideOffset < 0) slideOffset = 0;
+
+        // Draw semi-transparent box (using patterns)
+        int boxX = 30 + slideOffset;
+        int boxY = 25;
+        int boxW = 68;
+        int boxH = 25;
+
+        // Only draw if visible
+        if (boxX < 128) {
+            // Outer border
+            display.drawRect(boxX, boxY, boxW, boxH, SSD1306_WHITE);
+            display.drawRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2, SSD1306_WHITE);
+
+            // Clear inside
+            display.fillRect(boxX + 2, boxY + 2, boxW - 4, boxH - 4, SSD1306_BLACK);
+
+            // Show new gear (large)
+            display.setTextSize(2);
+            display.setCursor(boxX + boxW/2 - 8, boxY + 8);
+            display.print(GEAR_CONFIGS[animationGear].name);
+
+            // Pulse effect (scale based on time)
+            if (elapsed < 400 && (elapsed / 100) % 2 == 0) {
+                // Draw extra border for pulse
+                display.drawRect(boxX - 1, boxY - 1, boxW + 2, boxH + 2, SSD1306_WHITE);
+            }
+
+            display.setTextSize(1); // Reset
+        }
+    } else {
         gearChangeAnimation = false;
     }
 }
