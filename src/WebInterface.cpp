@@ -332,10 +332,18 @@ void WebInterface::handleResetTrip() {
 
 void WebInterface::handleSetHome() {
     sendCORSHeaders();
-    
+
     if (navigation && navigation->isGPSFixed()) {
-        navigation->setHomePosition(navigation->getLatitude(), navigation->getLongitude());
-        Serial.println("Home position set via web interface");
+        double lat = navigation->getLatitude();
+        double lon = navigation->getLongitude();
+        navigation->setHomePosition(lat, lon);
+
+        // Also notify the UI
+        if (ui) {
+            ui->setHomePosition(lat, lon);
+        }
+
+        Serial.printf("Home position set: %.6f, %.6f\n", lat, lon);
         server.send(200, "application/json", "{\"status\":\"home_set\"}");
     } else {
         server.send(500, "application/json", "{\"error\":\"gps_not_fixed\"}");
