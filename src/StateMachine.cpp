@@ -135,10 +135,13 @@ GearMode StateMachine::getCurrentGear() {
 
 void StateMachine::handleShiftUp() {
     GearMode newGear = currentGear;
-    
+
     switch (currentGear) {
         case GEAR_PARK:
             newGear = GEAR_1ST;
+            break;
+        case GEAR_REVERSE:
+            newGear = GEAR_PARK;
             break;
         case GEAR_1ST:
             newGear = GEAR_2ND;
@@ -156,7 +159,7 @@ void StateMachine::handleShiftUp() {
             // Already at highest gear
             return;
     }
-    
+
     if (isGearChangeAllowed(newGear)) {
         executeGearChange(newGear);
     }
@@ -164,11 +167,14 @@ void StateMachine::handleShiftUp() {
 
 void StateMachine::handleShiftDown() {
     GearMode newGear = currentGear;
-    
+
     switch (currentGear) {
         case GEAR_PARK:
-            newGear = GEAR_ECO;
+            newGear = GEAR_REVERSE;
             break;
+        case GEAR_REVERSE:
+            // Already at lowest gear
+            return;
         case GEAR_1ST:
             newGear = GEAR_ECO;
             break;
@@ -185,7 +191,7 @@ void StateMachine::handleShiftDown() {
             newGear = GEAR_3RD;
             break;
     }
-    
+
     if (isGearChangeAllowed(newGear)) {
         executeGearChange(newGear);
     }

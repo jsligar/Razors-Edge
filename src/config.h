@@ -84,6 +84,7 @@
 // ========================================
 enum GearMode {
     GEAR_PARK = 0,
+    GEAR_REVERSE,
     GEAR_1ST,
     GEAR_2ND,
     GEAR_3RD,
@@ -103,7 +104,8 @@ struct GearConfig {
 // Gear Configurations
 static const GearConfig GEAR_CONFIGS[GEAR_COUNT] = {
     {0.0f,  0.0f, "P", 0xFF0000},      // Park - Red
-    {40.0f, 0.5f, "1", 0x00FF00},      // 1st - Green  
+    {35.0f, 0.6f, "R", 0xFF8800},      // Reverse - Orange (cautious speed)
+    {40.0f, 0.5f, "1", 0x00FF00},      // 1st - Green
     {70.0f, 1.0f, "2", 0x0000FF},      // 2nd - Blue
     {100.0f, 1.5f, "3", 0xFFFF00},     // 3rd - Yellow
     {60.0f, 0.7f, "E", 0x00FFFF},      // Eco - Cyan

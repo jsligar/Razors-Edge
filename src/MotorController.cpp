@@ -71,17 +71,29 @@ void MotorController::setGear(GearMode gear) {
     if (gear >= 0 && gear < GEAR_COUNT) {
         GearMode oldGear = currentGear;
         currentGear = gear;
-        
-        Serial.printf("Gear change: %s → %s\n", 
-                     GEAR_CONFIGS[oldGear].name, 
+
+        Serial.printf("Gear change: %s → %s\n",
+                     GEAR_CONFIGS[oldGear].name,
                      GEAR_CONFIGS[currentGear].name);
-        
+
         // Handle special gear logic
         if (gear == GEAR_PARK) {
             stop();
             isEnabled = false;
-        } else {
+        } else if (gear == GEAR_REVERSE) {
+            // Set reverse direction
+            direction = false;  // false = reverse
+            setDirectionPins();
             isEnabled = true;
+            Serial.println("  → Direction: REVERSE");
+        } else {
+            // Set forward direction for all forward gears
+            direction = true;  // true = forward
+            setDirectionPins();
+            isEnabled = true;
+            if (oldGear == GEAR_REVERSE) {
+                Serial.println("  → Direction: FORWARD");
+            }
         }
     }
 }
