@@ -193,16 +193,79 @@ ScreenType UserInterface::getCurrentScreen() {
 void UserInterface::showStartupMessage() {
     if (!displayReady) return;
 
+    // Just clear and prepare - animation will be handled by updateStartupAnimation
     display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(10, 10);
-    display.println("NerdBillyFab");
-    display.setTextSize(2);
-    display.setCursor(15, 25);
-    display.println("RAZOR");
-    display.setTextSize(1);
-    display.setCursor(30, 45);
-    display.println("Initializing...");
+    display.display();
+}
+
+void UserInterface::updateStartupAnimation(unsigned long elapsedMs) {
+    if (!displayReady) return;
+
+    display.clearDisplay();
+
+    // Stage 1 (0-800ms): Character-by-character reveal of "NerdBillyFab"
+    const char* brandName = "NerdBillyFab";
+    int brandLen = strlen(brandName);
+
+    if (elapsedMs < 800) {
+        // Reveal characters progressively (100ms per character)
+        int charsToShow = (elapsedMs / 65);  // ~65ms per character = 12 chars in 800ms
+        if (charsToShow > brandLen) charsToShow = brandLen;
+
+        display.setTextSize(1);
+        display.setCursor(22, 12);  // Centered-ish
+
+        for (int i = 0; i < charsToShow; i++) {
+            display.print(brandName[i]);
+        }
+
+        // Add a blinking cursor at the end
+        if ((elapsedMs / 150) % 2 == 0 && charsToShow < brandLen) {
+            display.print("_");
+        }
+    }
+    // Stage 2 (800-1200ms): Wipe-in effect for "RAZOR"
+    else if (elapsedMs < 1200) {
+        // Show full brand name
+        display.setTextSize(1);
+        display.setCursor(22, 12);
+        display.println("NerdBillyFab");
+
+        // Wipe in RAZOR from left to right
+        unsigned long stageTime = elapsedMs - 800;
+        int wipeProgress = (stageTime * 128) / 400;  // 0-128 pixels in 400ms
+
+        display.setTextSize(2);
+        display.setCursor(20, 28);
+        display.println("RAZOR");
+
+        // Draw a wipe mask (reveal from left)
+        if (wipeProgress < 128) {
+            display.fillRect(wipeProgress, 28, 128 - wipeProgress, 16, SSD1306_BLACK);
+        }
+    }
+    // Stage 3 (1200ms+): Animated "Initializing..." with moving dots
+    else {
+        // Show everything
+        display.setTextSize(1);
+        display.setCursor(22, 12);
+        display.println("NerdBillyFab");
+
+        display.setTextSize(2);
+        display.setCursor(20, 28);
+        display.println("RAZOR");
+
+        // Animated dots
+        display.setTextSize(1);
+        display.setCursor(22, 50);
+        display.print("Initializing");
+
+        int dotCount = ((elapsedMs - 1200) / 250) % 4;  // 0-3 dots, cycling
+        for (int i = 0; i < dotCount; i++) {
+            display.print(".");
+        }
+    }
+
     display.display();
 }
 

@@ -119,11 +119,17 @@ void setup() {
     
     // Set screen to main drive before starting tasks
     ui.setScreen(SCREEN_MAIN_DRIVE);
-    
-    // Display startup message on OLED (one-time display before tasks start)
+
+    // Display animated startup message on OLED
     ui.showStartupMessage();
-    delay(2000); // Show startup message before tasks take over
-    
+    unsigned long startupStartTime = millis();
+    unsigned long startupDuration = 2000;  // 2 second animation
+
+    while (millis() - startupStartTime < startupDuration) {
+        ui.updateStartupAnimation(millis() - startupStartTime);
+        delay(50);  // Update animation at ~20fps
+    }
+
     // Disable watchdog for now (tasks handle their own monitoring)
     // safety.enableWatchdog();
     Serial.println("Watchdog timer disabled (using task monitoring)");

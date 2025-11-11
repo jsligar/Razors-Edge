@@ -20,9 +20,10 @@ public:
     void checkCalibrationSequence();
     ScreenType getCurrentScreen();
     void handleEncoderRotation(int16_t delta);
-    
+
     // Special displays
     void showStartupMessage();
+    void updateStartupAnimation(unsigned long elapsedMs);
     void showCalibrationScreen();
     void showGearChange(GearMode gear);
     void showWarning(const char* message);
