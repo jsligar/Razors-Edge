@@ -4,40 +4,40 @@
 #include <Arduino.h>
 
 // ========================================
-// GPIO PIN ASSIGNMENTS
+// GPIO PIN ASSIGNMENTS - ESP32-S3-WROOM-1
 // ========================================
 // I2C Bus
-#define GPIO_SDA                21
-#define GPIO_SCL                22
+#define GPIO_SDA                8   // ESP32-S3 Pin 13 (was GPIO21 on ESP32)
+#define GPIO_SCL                9   // ESP32-S3 Pin 14 (was GPIO22 on ESP32)
 
 // Motor Control
-#define GPIO_MOTOR_PWM_LEFT     18  // Changed from 32
-#define GPIO_MOTOR_PWM_RIGHT    12
-#define GPIO_MOTOR_DIR_LEFT     19  // Changed from 14
-#define GPIO_MOTOR_DIR_RIGHT    23  // Changed from 4
+#define GPIO_MOTOR_PWM_LEFT     10  // ESP32-S3 Pin 15, LEDC Channel 0, 10kHz (was GPIO18)
+#define GPIO_MOTOR_PWM_RIGHT    11  // ESP32-S3 Pin 16, LEDC Channel 1, 10kHz (was GPIO12)
+#define GPIO_MOTOR_DIR_LEFT     12  // ESP32-S3 Pin 17 (was GPIO19)
+#define GPIO_MOTOR_DIR_RIGHT    13  // ESP32-S3 Pin 18 (was GPIO23)
 
 // Sensors
-#define GPIO_PEDAL_ADC          4   // Changed: Use GPIO4 with voltage divider (0-3.3V)
-#define GPIO_KEY_SWITCH         15
+#define GPIO_PEDAL_ADC          1   // ESP32-S3 Pin 4 (ADC1_CH0) - Improved ADC accuracy vs ESP32
+#define GPIO_KEY_SWITCH         16  // ESP32-S3 Pin 22 (was GPIO15)
 
 // User Interface
-#define GPIO_ENCODER_CLK        25
-#define GPIO_ENCODER_DT         26
-#define GPIO_ENCODER_BTN        27
-#define GPIO_KEY0               5   // Changed from 33
-#define GPIO_KEY1               13  // Shift Down
+#define GPIO_ENCODER_CLK        4   // ESP32-S3 Pin 7, Encoder track A (was GPIO25)
+#define GPIO_ENCODER_DT         5   // ESP32-S3 Pin 8, Encoder track B (was GPIO26)
+#define GPIO_ENCODER_BTN        6   // ESP32-S3 Pin 9, Encoder push button (was GPIO27)
+#define GPIO_KEY0               7   // ESP32-S3 Pin 12, Shift Up button (was GPIO14)
+#define GPIO_KEY1               15  // ESP32-S3 Pin 21, Shift Down button (was GPIO13)
 
 // GPS
-#define GPIO_GPS_RX             16
-#define GPIO_GPS_TX             17
+#define GPIO_GPS_RX             17  // ESP32-S3 Pin 23, GPS TX → ESP RX (was GPIO16)
+#define GPIO_GPS_TX             18  // ESP32-S3 Pin 24, ESP TX → GPS RX (was GPIO17)
 
 // ========================================
 // I2C DEVICE ADDRESSES
 // ========================================
 #define INA228_BATTERY_ADDR     0x45    // MATEKSYS INA-BM (decimal 69)
-#define INA228_MOTOR_LEFT_ADDR  0x40    // Left motor current monitor (changed from 0x41)
-#define INA228_MOTOR_RIGHT_ADDR 0x42    // Right motor current monitor (changed from 0x44)
-#define PCA9685_ADDR            0x70    // 16-channel PWM driver
+#define INA228_MOTOR_LEFT_ADDR  0x41    // Left motor current monitor
+#define INA228_MOTOR_RIGHT_ADDR 0x44    // Right motor current monitor
+#define PCA9685_ADDR            0x40    // 16-channel PWM driver (default address)
 #define SSD1306_ADDR            0x3C    // OLED display
 
 // ========================================
@@ -84,6 +84,7 @@
 // ========================================
 enum GearMode {
     GEAR_PARK = 0,
+    GEAR_REVERSE,
     GEAR_1ST,
     GEAR_2ND,
     GEAR_3RD,
@@ -103,7 +104,8 @@ struct GearConfig {
 // Gear Configurations
 static const GearConfig GEAR_CONFIGS[GEAR_COUNT] = {
     {0.0f,  0.0f, "P", 0xFF0000},      // Park - Red
-    {40.0f, 0.5f, "1", 0x00FF00},      // 1st - Green  
+    {35.0f, 0.6f, "R", 0xFF8800},      // Reverse - Orange (cautious speed)
+    {40.0f, 0.5f, "1", 0x00FF00},      // 1st - Green
     {70.0f, 1.0f, "2", 0x0000FF},      // 2nd - Blue
     {100.0f, 1.5f, "3", 0xFFFF00},     // 3rd - Yellow
     {60.0f, 0.7f, "E", 0x00FFFF},      // Eco - Cyan
@@ -146,11 +148,46 @@ enum LightMode {
     LIGHT_DIM
 };
 
-// Light Zone Assignments (PCA9685 channels)
-#define LIGHT_FRONT_LEFT        0
-#define LIGHT_FRONT_RIGHT       1
-#define LIGHT_REAR_LEFT         2
-#define LIGHT_REAR_RIGHT        3
+// ========================================
+// REGENERATIVE BRAKING SYSTEM
+// ========================================
+enum RegenMode {
+    REGEN_OFF,      // No regenerative braking
+    REGEN_LOW,      // 15% regen strength
+    REGEN_MEDIUM,   // 30% regen strength
+    REGEN_HIGH      // 50% regen strength
+};
+
+// Regen configuration
+#define REGEN_VOLTAGE_MAX       63.0f   // Don't regen if battery above this
+#define REGEN_VOLTAGE_CUTOFF    62.5f   // Start tapering regen at this voltage
+#define REGEN_MIN_SPEED         2.0f    // Minimum speed for regen (MPH)
+#define REGEN_THROTTLE_DEADBAND 5.0f    // % deadband to detect decel
+
+// ========================================
+// LIGHTING SYSTEM
+// ========================================
+// Main Headlights (4 independent headlights)
+#define LIGHT_HEAD_1            0       // Headlight zone 1
+#define LIGHT_HEAD_2            1       // Headlight zone 2
+#define LIGHT_HEAD_3            2       // Headlight zone 3
+#define LIGHT_HEAD_4            3       // Headlight zone 4
+
+// Center Light
+#define LIGHT_CENTER            4       // Big center light
+
+// Tail Lights
+#define LIGHT_TAIL_LEFT         5       // Left tail light
+#define LIGHT_TAIL_RIGHT        6       // Right tail light
+
+// Precision Lighting (4 additional channels)
+#define LIGHT_TURN_LEFT         8       // Left turn signal
+#define LIGHT_TURN_RIGHT        9       // Right turn signal
+#define LIGHT_BRAKE             10      // Brake lights (high intensity)
+#define LIGHT_REVERSE           11      // Reverse/backup lights
+
+// Total lights in use: channels 0-6 (main), 8-11 (auxiliary)
+#define TOTAL_MAIN_LIGHTS       7       // For startup sequence
 
 // ========================================
 // DISPLAY CONFIGURATION
@@ -158,6 +195,7 @@ enum LightMode {
 enum ScreenType {
     SCREEN_MAIN_DRIVE,
     SCREEN_DETAILED_METRICS,
+    SCREEN_NAVIGATION,
     SCREEN_SETTINGS,
     SCREEN_WARNING,
     SCREEN_CALIBRATION
@@ -191,7 +229,7 @@ enum ScreenType {
 // ========================================
 // DEBOUNCE TIMES
 // ========================================
-#define BUTTON_DEBOUNCE_MS      50
+#define BUTTON_DEBOUNCE_MS      150     // Increased from 50ms - prevents gear shift bounce
 #define ENCODER_DEBOUNCE_MS     20
 
 #endif // CONFIG_H

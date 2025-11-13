@@ -135,10 +135,13 @@ GearMode StateMachine::getCurrentGear() {
 
 void StateMachine::handleShiftUp() {
     GearMode newGear = currentGear;
-    
+
     switch (currentGear) {
         case GEAR_PARK:
             newGear = GEAR_1ST;
+            break;
+        case GEAR_REVERSE:
+            newGear = GEAR_PARK;
             break;
         case GEAR_1ST:
             newGear = GEAR_2ND;
@@ -156,7 +159,7 @@ void StateMachine::handleShiftUp() {
             // Already at highest gear
             return;
     }
-    
+
     if (isGearChangeAllowed(newGear)) {
         executeGearChange(newGear);
     }
@@ -164,11 +167,14 @@ void StateMachine::handleShiftUp() {
 
 void StateMachine::handleShiftDown() {
     GearMode newGear = currentGear;
-    
+
     switch (currentGear) {
         case GEAR_PARK:
-            newGear = GEAR_ECO;
+            newGear = GEAR_REVERSE;
             break;
+        case GEAR_REVERSE:
+            // Already at lowest gear
+            return;
         case GEAR_1ST:
             newGear = GEAR_ECO;
             break;
@@ -185,7 +191,7 @@ void StateMachine::handleShiftDown() {
             newGear = GEAR_3RD;
             break;
     }
-    
+
     if (isGearChangeAllowed(newGear)) {
         executeGearChange(newGear);
     }
@@ -455,7 +461,8 @@ void StateMachine::executeGearChange(GearMode newGear) {
     
     // Update user interface
     if (userInterface) {
-        userInterface->showGearChange(newGear);
+        userInterface->setGear(newGear);  // Update the displayed gear
+        userInterface->showGearChange(newGear);  // Trigger animation
     }
     
     // Update lights
@@ -469,25 +476,32 @@ void StateMachine::executeGearChange(GearMode newGear) {
 }
 
 bool StateMachine::isGearChangeAllowed(GearMode newGear) {
+    // Prevent rapid gear changes (cooldown period)
+    unsigned long timeSinceLastChange = millis() - gearChangeTime;
+    if (timeSinceLastChange < 500) {  // 500ms cooldown
+        // Don't spam serial - just silently reject
+        return false;
+    }
+
     // Check if gear change is safe
     if (newGear == GEAR_SPORT_PLUS) {
         // Special checks for Sport+ mode
         if (powerManager) {
             float voltage = powerManager->getBatteryVoltage();
             float current = powerManager->getBatteryCurrent();
-            
+
             if (voltage < 58.0f) {
                 Serial.println("Sport+ denied: Battery voltage too low");
                 return false;
             }
-            
+
             if (current > 18.0f) {
                 Serial.println("Sport+ denied: System under high load");
                 return false;
             }
         }
     }
-    
+
     return true;
 }
 

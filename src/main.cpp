@@ -117,17 +117,28 @@ void setup() {
         Serial.printf("✓ Battery voltage: %.1fV\n", batteryVoltage);
     }
     
-    // Display startup message on OLED
+    // Set screen to main drive before starting tasks
+    ui.setScreen(SCREEN_MAIN_DRIVE);
+
+    // Display animated startup message on OLED
     ui.showStartupMessage();
-    
-    // Enable watchdog
-    safety.enableWatchdog();
+    unsigned long startupStartTime = millis();
+    unsigned long startupDuration = 2000;  // 2 second animation
+
+    while (millis() - startupStartTime < startupDuration) {
+        ui.updateStartupAnimation(millis() - startupStartTime);
+        delay(50);  // Update animation at ~20fps
+    }
+
+    // Disable watchdog for now (tasks handle their own monitoring)
+    // safety.enableWatchdog();
+    Serial.println("Watchdog timer disabled (using task monitoring)");
     
     Serial.println("=================================");
     Serial.println("System ready! Starting dual-core tasks...");
     Serial.println("=================================");
     
-    // Start dual-core task system
+    // Start dual-core task system (UI task will now update with main drive screen)
     if (coreManager.startAllTasks()) {
         Serial.println("✓ Dual-core task system active");
         Serial.println("  → Core 0: WiFi, Web Interface");
@@ -136,7 +147,11 @@ void setup() {
         Serial.println("⚠ Failed to start dual-core tasks, falling back to single-core mode");
     }
     
-    delay(2000); // Show startup message
+    // Force an immediate UI update to clear startup message
+    delay(100); // Let UI task start
+    ui.update();
+    
+    Serial.println("✓ Main drive screen active");
 }
 
 void loop() {
@@ -146,26 +161,30 @@ void loop() {
     
     // Most work is now handled by dedicated tasks on specific cores
     // This main loop just handles coordination and fallback operations
-    
-    // Handle gear shifting input events (time-critical)
-    if (inputs.isShiftUpPressed()) {
+
+    // Get shared data (includes button states from UI task on Core 1)
+    SharedSystemData sysData = coreManager.getSharedData();
+
+    // Handle gear shifting input events (buttons read by UI task)
+    if (sysData.shiftUpPressed) {
         stateMachine.handleShiftUp();
         Serial.println("Shift UP requested");
+        // Clear the flag so it doesn't retrigger
+        coreManager.clearShiftUpFlag();
     }
-    
-    if (inputs.isShiftDownPressed()) {
+
+    if (sysData.shiftDownPressed) {
         stateMachine.handleShiftDown();
         Serial.println("Shift DOWN requested");
+        // Clear the flag so it doesn't retrigger
+        coreManager.clearShiftDownFlag();
     }
-    
+
     // Update state machine coordination
     stateMachine.update();
-    
+
     // Update shared data for task communication
     coreManager.updateSharedData();
-    
-    // Monitor system health
-    SharedSystemData sysData = coreManager.getSharedData();
     if (!sysData.systemReady) {
         Serial.println("⚠ Task system not ready, attempting restart...");
         coreManager.startAllTasks();
@@ -178,6 +197,9 @@ void loop() {
     
     // Sport+ timeout check
     stateMachine.checkSportPlusTimeout();
+    
+    // Feed watchdog to prevent timeout
+    yield();  // Feed watchdog and allow background tasks
     
     // Light main loop delay for task scheduling
     delay(10);  // Reduced delay since tasks handle most work

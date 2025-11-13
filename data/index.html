@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Razors Edge - Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <h1>⚡ Razors Edge</h1>
+            <span class="connection-status" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </span>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-icon" id="refreshBtn" title="Refresh">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+            </button>
+            <button class="btn btn-icon" id="settingsBtn" title="Settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m6-12h-6m-6 0h6m6 6h-6m-6 0h6"></path>
+                </svg>
+            </button>
+            <button class="btn btn-secondary btn-sm" id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Emergency Controls (Always Visible) -->
+        <div class="emergency-bar">
+            <button class="btn btn-danger btn-lg" id="emergencyStopBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="1"></rect>
+                </svg>
+                EMERGENCY STOP
+            </button>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Power System Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚡ Power System</h3>
+                    <div class="card-actions">
+                        <span class="badge badge-success" id="powerStatus">OK</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Battery</div>
+                            <div class="metric-value large" id="batteryVoltage">--</div>
+                            <div class="metric-unit">Volts</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Current</div>
+                            <div class="metric-value large" id="batteryCurrent">--</div>
+                            <div class="metric-unit">Amps</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Power</div>
+                            <div class="metric-value" id="batteryPower">--</div>
+                            <div class="metric-unit">Watts</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">SOC</div>
+                            <div class="metric-value" id="batterySOC">--</div>
+                            <div class="metric-unit">%</div>
+                        </div>
+                    </div>
+                    <div class="battery-bar">
+                        <div class="battery-fill" id="batteryFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Motor Control Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🏎️ Motor Control</h3>
+                    <div class="card-actions">
+                        <span class="gear-display" id="currentGear">P</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Left Motor</div>
+                            <div class="metric-value" id="leftMotorSpeed">--</div>
+                            <div class="metric-unit">%</div>
+                            <div class="metric-sub" id="leftMotorCurrent">-- A</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Right Motor</div>
+                            <div class="metric-value" id="rightMotorSpeed">--</div>
+                            <div class="metric-unit">%</div>
+                            <div class="metric-sub" id="rightMotorCurrent">-- A</div>
+                        </div>
+                    </div>
+                    <div class="gear-selector">
+                        <button class="gear-btn" data-gear="0">P</button>
+                        <button class="gear-btn" data-gear="1">1</button>
+                        <button class="gear-btn" data-gear="2">2</button>
+                        <button class="gear-btn" data-gear="3">3</button>
+                        <button class="gear-btn" data-gear="4">E</button>
+                        <button class="gear-btn" data-gear="5">S+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GPS & Navigation Card -->
+            <div class="card card-large">
+                <div class="card-header">
+                    <h3>📍 GPS & Navigation</h3>
+                    <div class="card-actions">
+                        <span class="badge" id="gpsStatus">Searching</span>
+                        <span class="badge badge-info" id="satelliteCount">0 sats</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="map-container">
+                        <div id="map"></div>
+                    </div>
+                    <div class="metrics-grid mt-3">
+                        <div class="metric">
+                            <div class="metric-label">Speed</div>
+                            <div class="metric-value" id="gpsSpeed">--</div>
+                            <div class="metric-unit">mph</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Odometer</div>
+                            <div class="metric-value" id="odometer">--</div>
+                            <div class="metric-unit">mi</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Trip</div>
+                            <div class="metric-value" id="tripMeter">--</div>
+                            <div class="metric-unit">mi</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Coordinates</div>
+                            <div class="metric-value small" id="coordinates">--, --</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geofencing Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🛡️ Geofencing</h3>
+                    <div class="card-actions">
+                        <button class="btn btn-sm btn-secondary" id="manageGeofencesBtn">Manage</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Safe Zone</div>
+                            <div class="metric-value" id="safeZone">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Speed Limit</div>
+                            <div class="metric-value" id="speedLimit">--</div>
+                            <div class="metric-unit">mph</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Distance Home</div>
+                            <div class="metric-value" id="distanceHome">--</div>
+                            <div class="metric-unit">m</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Violations</div>
+                            <div class="metric-value" id="violations">--</div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-secondary btn-sm btn-block" id="setHomeBtn">
+                            Set Current Location as Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚙️ System Status</h3>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Key Switch</div>
+                            <div class="metric-value" id="keySwitch">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Safety</div>
+                            <div class="metric-value" id="safetyStatus">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Uptime</div>
+                            <div class="metric-value" id="uptime">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Free Heap</div>
+                            <div class="metric-value small" id="freeHeap">--</div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-secondary btn-sm btn-block" id="calibrationBtn">
+                            📺 OLED Calibration Test
+                        </button>
+                        <button class="btn btn-secondary btn-sm btn-block mt-1" id="resetTripBtn">
+                            Reset Trip Meter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Geofence Management Modal -->
+    <div class="modal" id="geofenceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Geofence Management</h3>
+                <button class="modal-close" id="closeGeofenceModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="geofence-list" id="geofenceList">
+                    <p class="text-muted">Loading geofences...</p>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-primary" id="addGeofenceBtn">Add New Geofence</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>

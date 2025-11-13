@@ -21,7 +21,14 @@ MotorController::MotorController() :
     backEMFProtectionActive(false),
     previousSpeedLeft(0.0f),
     previousSpeedRight(0.0f),
-    backEMFStartTime(0)
+    backEMFStartTime(0),
+    emergencyStopLogged(false),
+    regenMode(REGEN_MEDIUM),  // Default to medium regen
+    previousThrottle(0.0f),
+    batteryVoltage(60.0f),    // Assume nominal voltage
+    vehicleSpeed(0.0f),
+    currentRegenStrength(0.0f),
+    activelyRegenerating(false)
 {
 }
 
@@ -70,17 +77,29 @@ void MotorController::setGear(GearMode gear) {
     if (gear >= 0 && gear < GEAR_COUNT) {
         GearMode oldGear = currentGear;
         currentGear = gear;
-        
-        Serial.printf("Gear change: %s → %s\n", 
-                     GEAR_CONFIGS[oldGear].name, 
+
+        Serial.printf("Gear change: %s → %s\n",
+                     GEAR_CONFIGS[oldGear].name,
                      GEAR_CONFIGS[currentGear].name);
-        
+
         // Handle special gear logic
         if (gear == GEAR_PARK) {
             stop();
             isEnabled = false;
-        } else {
+        } else if (gear == GEAR_REVERSE) {
+            // Set reverse direction
+            direction = false;  // false = reverse
+            setDirectionPins();
             isEnabled = true;
+            Serial.println("  → Direction: REVERSE");
+        } else {
+            // Set forward direction for all forward gears
+            direction = true;  // true = forward
+            setDirectionPins();
+            isEnabled = true;
+            if (oldGear == GEAR_REVERSE) {
+                Serial.println("  → Direction: FORWARD");
+            }
         }
     }
 }
@@ -88,27 +107,48 @@ void MotorController::setGear(GearMode gear) {
 void MotorController::setThrottleCommand(float pedalPercent) {
     if (!isEnabled || currentGear == GEAR_PARK) {
         setSpeed(0.0f);
+        activelyRegenerating = false;
+        previousThrottle = 0.0f;
         return;
     }
-    
+
     // Apply gear-specific throttle curve
     float curvedThrottle = applyThrottleCurve(pedalPercent, currentGear);
-    
+
+    // Check if we should apply regenerative braking
+    float regenBraking = 0.0f;
+    if (shouldApplyRegen(pedalPercent)) {
+        regenBraking = calculateRegenBraking(pedalPercent);
+        activelyRegenerating = true;
+        currentRegenStrength = regenBraking;
+    } else {
+        activelyRegenerating = false;
+        currentRegenStrength = 0.0f;
+    }
+
+    // Final throttle = motor throttle - regen braking
+    // (regen acts as braking force)
+    float finalThrottle = curvedThrottle - regenBraking;
+    if (finalThrottle < 0.0f) finalThrottle = 0.0f;
+
     // Set target speeds based on control mode
     switch (controlMode) {
         case MOTOR_SYNCHRONIZED:
-            setSpeed(curvedThrottle);
+            setSpeed(finalThrottle);
             break;
-            
+
         case MOTOR_DIFFERENTIAL:
             // Differential steering not implemented yet
-            setSpeed(curvedThrottle);
+            setSpeed(finalThrottle);
             break;
-            
+
         case MOTOR_BALANCED:
-            setSpeed(curvedThrottle);
+            setSpeed(finalThrottle);
             break;
     }
+
+    // Store for next cycle
+    previousThrottle = pedalPercent;
 }
 
 void MotorController::setSpeed(float percent) {
@@ -148,7 +188,11 @@ void MotorController::emergencyStop() {
     // Don't immediately zero current speeds - let ramping handle it
     // This prevents sudden motor driver stress from back-EMF
     
-    Serial.println("EMERGENCY STOP activated - Back-EMF protection engaged");
+    // Only log once to prevent spam
+    if (!emergencyStopLogged) {
+        Serial.println("EMERGENCY STOP activated - Back-EMF protection engaged");
+        emergencyStopLogged = true;
+    }
 }
 
 void MotorController::brake() {
@@ -426,4 +470,103 @@ void MotorController::applyGeofenceSpeedLimit() {
 
 bool MotorController::shouldStopForGeofence() {
     return geofenceStopActive;
+}
+// Regenerative Braking Methods
+
+void MotorController::setRegenMode(RegenMode mode) {
+    regenMode = mode;
+    const char* modeNames[] = {"OFF", "LOW", "MEDIUM", "HIGH"};
+    Serial.printf("Regen mode set to: %s\n", modeNames[mode]);
+}
+
+RegenMode MotorController::getRegenMode() {
+    return regenMode;
+}
+
+void MotorController::setBatteryVoltage(float voltage) {
+    batteryVoltage = voltage;
+}
+
+void MotorController::setCurrentSpeed(float speedMph) {
+    vehicleSpeed = speedMph;
+}
+
+float MotorController::getRegenStrength() {
+    return currentRegenStrength;
+}
+
+bool MotorController::isRegenerating() {
+    return activelyRegenerating;
+}
+
+bool MotorController::shouldApplyRegen(float currentThrottle) {
+    // Don't regen if mode is off
+    if (regenMode == REGEN_OFF) return false;
+
+    // Don't regen in reverse
+    if (currentGear == GEAR_REVERSE) return false;
+
+    // Don't regen at very low speeds (under 2 MPH)
+    if (vehicleSpeed < REGEN_MIN_SPEED) return false;
+
+    // Don't regen if battery voltage too high
+    if (batteryVoltage >= REGEN_VOLTAGE_MAX) return false;
+
+    // Detect deceleration: current throttle significantly less than previous
+    float throttleDecrease = previousThrottle - currentThrottle;
+    if (throttleDecrease > REGEN_THROTTLE_DEADBAND) {
+        return true;  // Throttle being released = decel
+    }
+
+    // Also apply light regen when coasting (throttle near zero but moving)
+    if (currentThrottle < 5.0f && vehicleSpeed > REGEN_MIN_SPEED) {
+        return true;  // Coasting
+    }
+
+    return false;
+}
+
+float MotorController::calculateRegenBraking(float currentThrottle) {
+    // Get base regen strength based on mode
+    float baseRegenStrength = 0.0f;
+    switch (regenMode) {
+        case REGEN_OFF:
+            return 0.0f;
+        case REGEN_LOW:
+            baseRegenStrength = 15.0f;  // 15% braking force
+            break;
+        case REGEN_MEDIUM:
+            baseRegenStrength = 30.0f;  // 30% braking force
+            break;
+        case REGEN_HIGH:
+            baseRegenStrength = 50.0f;  // 50% braking force
+            break;
+    }
+
+    // Calculate deceleration amount (how much throttle was released)
+    float throttleDecrease = previousThrottle - currentThrottle;
+    if (throttleDecrease < 0.0f) throttleDecrease = 0.0f;
+
+    // Regen proportional to deceleration (more release = more regen)
+    float regenAmount = baseRegenStrength * (throttleDecrease / 100.0f);
+
+    // If just coasting (throttle near zero), apply minimum regen
+    if (currentThrottle < 5.0f && throttleDecrease < REGEN_THROTTLE_DEADBAND) {
+        regenAmount = baseRegenStrength * 0.3f;  // 30% of full regen when coasting
+    }
+
+    // Taper regen if battery voltage getting high
+    if (batteryVoltage > REGEN_VOLTAGE_CUTOFF) {
+        float voltageFactor = 1.0f - ((batteryVoltage - REGEN_VOLTAGE_CUTOFF) / 
+                                      (REGEN_VOLTAGE_MAX - REGEN_VOLTAGE_CUTOFF));
+        regenAmount *= voltageFactor;
+    }
+
+    // Scale by vehicle speed (less regen at very low speeds)
+    if (vehicleSpeed < 5.0f) {
+        float speedFactor = vehicleSpeed / 5.0f;
+        regenAmount *= speedFactor;
+    }
+
+    return constrain(regenAmount, 0.0f, baseRegenStrength);
 }

@@ -19,9 +19,11 @@ public:
     void cycleScreen();
     void checkCalibrationSequence();
     ScreenType getCurrentScreen();
-    
+    void handleEncoderRotation(int16_t delta);
+
     // Special displays
     void showStartupMessage();
+    void updateStartupAnimation(unsigned long elapsedMs);
     void showCalibrationScreen();
     void showGearChange(GearMode gear);
     void showWarning(const char* message);
@@ -37,6 +39,15 @@ public:
     void setBatterySOC(float percent);
     void setMotorData(float leftCurrent, float rightCurrent, float imbalance);
     void setGPSData(uint8_t satellites, bool fixed);
+    void setGPSCoordinates(double latitude, double longitude);
+    void setNavigationData(float bearing, float distance, float course);
+    void setHomePosition(double lat, double lon);
+
+    // Button handlers (A = brightness, B = light mode)
+    void handleButtonA();  // Brightness control
+    void handleButtonB();  // Light mode control
+    uint8_t getBrightness();
+    LightMode getLightMode();
     
 private:
     // Display hardware
@@ -60,34 +71,62 @@ private:
     float motorImbalance;
     uint8_t gpsSatellites;
     bool gpsFixed;
+    double gpsLatitude;
+    double gpsLongitude;
+
+    // Navigation data
+    float bearingToHome;     // Degrees to home
+    float distanceToHome;    // Miles to home
+    float currentCourse;     // Current heading in degrees
+    double homeLat;
+    double homeLon;
+    bool homePositionSet;
+
+    // User adjustable settings
+    uint8_t displayBrightness;  // 0-100%
+    LightMode lightMode;
     
     // Animation state
     bool gearChangeAnimation;
     unsigned long gearChangeStartTime;
     GearMode animationGear;
-    
+
+    // Screen transition
+    ScreenType previousScreen;
+    unsigned long screenTransitionStartTime;
+    bool screenTransitioning;
+
     // Calibration access
     uint8_t encoderPressCount;
     unsigned long lastEncoderPress;
     bool calibrationUnlocked;
+
+    // Settings adjustment
+    uint8_t selectedSettingIndex;
+    int16_t settingAdjustmentValue;
     
     // Screen drawing methods
     void drawMainDriveScreen();
     void drawDetailedMetricsScreen();
+    void drawNavigationScreen();
     void drawSettingsScreen();
     void drawWarningScreen();
     void drawCalibrationScreen();
-    
+
     // Helper drawing methods
     void drawHeader();
     void drawGearIndicator(int16_t x, int16_t y, GearMode gear, bool large = false);
     void drawBatteryGauge(int16_t x, int16_t y, float percent);
     void drawProgressBar(int16_t x, int16_t y, int16_t width, int16_t height, float percent);
     void drawValue(int16_t x, int16_t y, float value, const char* unit, uint8_t decimals = 1);
-    
+    void drawCompassNeedle(int16_t centerX, int16_t centerY, int16_t radius, float angle);
+    void drawSpeedometerArc(int16_t centerX, int16_t centerY, int16_t radius, float speed, float maxSpeed);
+    void drawIcon(int16_t x, int16_t y, const char* iconType);
+
     // Animation methods
     void updateGearChangeAnimation();
     void updateWarningAnimation();
+    void updateScreenTransition();
     
     // Utility methods
     const char* getFaultString(uint8_t faultCode);

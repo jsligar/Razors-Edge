@@ -14,7 +14,7 @@ InputHandler::InputHandler() :
     
     // Initialize button states
     keySwitch = {false, false, false, false, 0};
-    encoder = {0, 0, false, false};
+    encoder = {0, 0, false, false, 0, 0};
     shiftUpButton = {false, false, false, false, 0};
     shiftDownButton = {false, false, false, false, 0};
     
@@ -216,22 +216,28 @@ void InputHandler::updateKeySwitch() {
 }
 
 void InputHandler::updateEncoder() {
-    // Read encoder signals
+    unsigned long currentTime = millis();
+
+    // Read encoder signals with debouncing
     int currentA = digitalRead(GPIO_ENCODER_CLK);
     int currentB = digitalRead(GPIO_ENCODER_DT);
-    
-    // Detect state changes
-    if (currentA != lastEncoderA || currentB != lastEncoderB) {
+
+    // Detect state changes with debounce (5ms minimum between steps)
+    if ((currentA != lastEncoderA || currentB != lastEncoderB) &&
+        (currentTime - encoder.lastRotationTime > ENCODER_DEBOUNCE_MS)) {
         handleEncoderChange();
         lastEncoderA = currentA;
         lastEncoderB = currentB;
+        encoder.lastRotationTime = currentTime;
     }
-    
-    // Read encoder button
-    bool buttonPressed = !digitalRead(GPIO_ENCODER_BTN); // Active low
-    if (buttonPressed != encoder.buttonPressed) {
-        encoder.buttonPressed = buttonPressed;
+
+    // Read encoder button with improved debouncing (50ms)
+    bool buttonState = !digitalRead(GPIO_ENCODER_BTN); // Active low
+    if (buttonState != encoder.buttonPressed &&
+        (currentTime - encoder.lastButtonChangeTime > BUTTON_DEBOUNCE_MS)) {
+        encoder.buttonPressed = buttonState;
         encoder.buttonChanged = true;
+        encoder.lastButtonChangeTime = currentTime;
     }
 }
 

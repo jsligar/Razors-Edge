@@ -29,6 +29,7 @@ public:
     // Animation controls
     void startGearShiftAnimation(GearMode gear);
     void startWarningFlash();
+    void startStartupSequence();  // Cool startup flicker
     void stopAllAnimations();
     
 private:
@@ -38,7 +39,7 @@ private:
     
     // Current state
     LightMode currentMode;
-    uint8_t zoneBrightness[4]; // Front L/R, Rear L/R
+    uint8_t zoneBrightness[7]; // 4 headlights, 1 center, 2 tails
     
     // Animation state
     bool animationActive;
@@ -57,6 +58,7 @@ private:
     // Animation patterns
     void runGearShiftPattern(GearMode gear);
     void runWarningPattern();
+    void runStartupPattern();
 };
 
 #endif // LIGHT_CONTROLLER_H
