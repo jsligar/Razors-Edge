@@ -60,11 +60,19 @@ public:
     void setDecelRate(float ratePerSecond);
     void setEmergencyDecelRate(float ratePerSecond);
     void setBackEMFProtectionRate(float ratePerSecond);
-    
+
     // Back-EMF protection
     bool isBackEMFProtectionActive();
     void forceGentleRampDown();
-    
+
+    // Regenerative braking
+    void setRegenMode(RegenMode mode);
+    RegenMode getRegenMode();
+    void setBatteryVoltage(float voltage);  // For regen cutoff
+    void setCurrentSpeed(float speedMph);   // For regen min speed
+    float getRegenStrength();               // Returns current regen %
+    bool isRegenerating();                  // Check if actively regenerating
+
 private:
     // Current state
     GearMode currentGear;
@@ -96,7 +104,15 @@ private:
     float previousSpeedRight;
     unsigned long backEMFStartTime;
     bool emergencyStopLogged;  // Flag to prevent spam
-    
+
+    // Regenerative braking
+    RegenMode regenMode;
+    float previousThrottle;
+    float batteryVoltage;
+    float vehicleSpeed;  // MPH
+    float currentRegenStrength;  // Calculated regen percentage
+    bool activelyRegenerating;
+
     // Internal methods
     void updateRamping();
     void applyPWM();
@@ -104,7 +120,11 @@ private:
     void updateMotorBalance();
     void updateBackEMFProtection();
     bool detectExcessiveDeceleration(float currentSpeed, float previousSpeed, float deltaTime);
-    
+
+    // Regenerative braking internal
+    float calculateRegenBraking(float currentThrottle);
+    bool shouldApplyRegen(float currentThrottle);
+
     // PWM control
     void setPWMLeft(float percent);
     void setPWMRight(float percent);

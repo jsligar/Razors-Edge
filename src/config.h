@@ -148,7 +148,25 @@ enum LightMode {
     LIGHT_DIM
 };
 
-// Light Zone Assignments (PCA9685 channels - single board at 0x40)
+// ========================================
+// REGENERATIVE BRAKING SYSTEM
+// ========================================
+enum RegenMode {
+    REGEN_OFF,      // No regenerative braking
+    REGEN_LOW,      // 15% regen strength
+    REGEN_MEDIUM,   // 30% regen strength
+    REGEN_HIGH      // 50% regen strength
+};
+
+// Regen configuration
+#define REGEN_VOLTAGE_MAX       63.0f   // Don't regen if battery above this
+#define REGEN_VOLTAGE_CUTOFF    62.5f   // Start tapering regen at this voltage
+#define REGEN_MIN_SPEED         2.0f    // Minimum speed for regen (MPH)
+#define REGEN_THROTTLE_DEADBAND 5.0f    // % deadband to detect decel
+
+// ========================================
+// LIGHTING SYSTEM
+// ========================================
 // Main Headlights (4 independent headlights)
 #define LIGHT_HEAD_1            0       // Headlight zone 1
 #define LIGHT_HEAD_2            1       // Headlight zone 2

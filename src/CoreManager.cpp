@@ -251,11 +251,17 @@ void CoreManager::runMotorControlTask() {
         }
         
         if (motors && inputs) {
+            // Update regenerative braking parameters
+            lockData();
+            motors->setBatteryVoltage(sharedData.batteryVoltage);
+            motors->setCurrentSpeed(sharedData.gpsSpeed);
+            unlockData();
+
             // Update motor control (high priority for responsiveness)
             float pedalPercent = inputs->getPedalPosition();
             motors->setThrottleCommand(pedalPercent);
             motors->update();
-            
+
             lockData();
             sharedData.currentSpeedLeft = motors->getCurrentSpeedLeft();
             sharedData.currentSpeedRight = motors->getCurrentSpeedRight();
