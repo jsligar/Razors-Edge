@@ -4,32 +4,32 @@
 #include <Arduino.h>
 
 // ========================================
-// GPIO PIN ASSIGNMENTS
+// GPIO PIN ASSIGNMENTS - ESP32-S3-WROOM-1
 // ========================================
 // I2C Bus
-#define GPIO_SDA                21
-#define GPIO_SCL                22
+#define GPIO_SDA                8   // ESP32-S3 Pin 13 (was GPIO21 on ESP32)
+#define GPIO_SCL                9   // ESP32-S3 Pin 14 (was GPIO22 on ESP32)
 
 // Motor Control
-#define GPIO_MOTOR_PWM_LEFT     18  // Changed from 32
-#define GPIO_MOTOR_PWM_RIGHT    12
-#define GPIO_MOTOR_DIR_LEFT     19  // Changed from 14
-#define GPIO_MOTOR_DIR_RIGHT    23  // Changed from 4
+#define GPIO_MOTOR_PWM_LEFT     10  // ESP32-S3 Pin 15, LEDC Channel 0, 10kHz (was GPIO18)
+#define GPIO_MOTOR_PWM_RIGHT    11  // ESP32-S3 Pin 16, LEDC Channel 1, 10kHz (was GPIO12)
+#define GPIO_MOTOR_DIR_LEFT     12  // ESP32-S3 Pin 17 (was GPIO19)
+#define GPIO_MOTOR_DIR_RIGHT    13  // ESP32-S3 Pin 18 (was GPIO23)
 
 // Sensors
-#define GPIO_PEDAL_ADC          36  // GPIO36 (ADC1_CH0) - Works with WiFi (ADC2 conflicts with WiFi)
-#define GPIO_KEY_SWITCH         15
+#define GPIO_PEDAL_ADC          1   // ESP32-S3 Pin 4 (ADC1_CH0) - Improved ADC accuracy vs ESP32
+#define GPIO_KEY_SWITCH         16  // ESP32-S3 Pin 22 (was GPIO15)
 
 // User Interface
-#define GPIO_ENCODER_CLK        25  // Encoder track A (TRA)
-#define GPIO_ENCODER_DT         26  // Encoder track B (TRB)
-#define GPIO_ENCODER_BTN        27  // Encoder push button
-#define GPIO_KEY0               14  // Confirm/Shift Up button (Button A) - SAFE PIN
-#define GPIO_KEY1               13  // Back/Shift Down button (Button B)
+#define GPIO_ENCODER_CLK        4   // ESP32-S3 Pin 7, Encoder track A (was GPIO25)
+#define GPIO_ENCODER_DT         5   // ESP32-S3 Pin 8, Encoder track B (was GPIO26)
+#define GPIO_ENCODER_BTN        6   // ESP32-S3 Pin 9, Encoder push button (was GPIO27)
+#define GPIO_KEY0               7   // ESP32-S3 Pin 12, Shift Up button (was GPIO14)
+#define GPIO_KEY1               15  // ESP32-S3 Pin 21, Shift Down button (was GPIO13)
 
 // GPS
-#define GPIO_GPS_RX             16
-#define GPIO_GPS_TX             17
+#define GPIO_GPS_RX             17  // ESP32-S3 Pin 23, GPS TX → ESP RX (was GPIO16)
+#define GPIO_GPS_TX             18  // ESP32-S3 Pin 24, ESP TX → GPS RX (was GPIO17)
 
 // ========================================
 // I2C DEVICE ADDRESSES

@@ -8,11 +8,13 @@
 
 ## Core Processing
 
-- **ESP32-WROOM-32 module** (dual-core, WiFi enabled)
+- **ESP32-S3-WROOM-1-N8R2 module** (dual-core Xtensa LX7 @ 240MHz, WiFi enabled)
+- 8MB Flash, 2MB PSRAM
 - Operating voltage: 3.3V logic
-- USB-C connector for programming
+- Improved ADC accuracy for safety-critical throttle sensing
+- USB-C connector for programming (CH340C USB-to-UART bridge)
 - Reset and boot buttons
-- WiFi antenna keep-out zone
+- WiFi antenna keep-out zone (15mm × 5mm)
 
 ---
 
@@ -76,13 +78,14 @@
 - I2C address: Left motor **0x41**, Right motor **0x44**
 - Filtering: 100nF ceramic + 10µF tantalum
 
-#### PWM Control
+#### PWM Control (ESP32-S3)
 
-- Left motor PWM: **GPIO 18** (10kHz, 8-bit)
-- Left motor DIR: **GPIO 19**
-- Right motor PWM: **GPIO 12**
-- Right motor DIR: **GPIO 23**
+- Left motor PWM: **GPIO 10** (ESP32-S3 Pin 15, LEDC Channel 0, 10kHz, 8-bit)
+- Left motor DIR: **GPIO 12** (ESP32-S3 Pin 17)
+- Right motor PWM: **GPIO 11** (ESP32-S3 Pin 16, LEDC Channel 1, 10kHz, 8-bit)
+- Right motor DIR: **GPIO 13** (ESP32-S3 Pin 18)
 - Logic level to gate driver: **74HC14** schmitt trigger buffer
+- Series resistors: 220Ω between ESP32-S3 and gate drivers
 
 #### Motor Protection
 
@@ -115,22 +118,22 @@
 
 ### EC11 Rotary Encoder
 
-- CLK: **GPIO 25** (10kΩ pull-up, 100nF debounce)
-- DT: **GPIO 26** (10kΩ pull-up, 100nF debounce)
-- BTN: **GPIO 27** (10kΩ pull-up, 100nF debounce)
+- CLK: **GPIO 4** (ESP32-S3 Pin 7, 10kΩ pull-up, 100nF debounce)
+- DT: **GPIO 5** (ESP32-S3 Pin 8, 10kΩ pull-up, 100nF debounce)
+- BTN: **GPIO 6** (ESP32-S3 Pin 9, 10kΩ pull-up, 100nF debounce)
 - 5-pin right-angle header
 
 ### Shift Buttons
 
-- Button A (Shift UP): **GPIO 14** (10kΩ pull-up, 100nF debounce)
-- Button B (Shift DOWN): **GPIO 13** (10kΩ pull-up, 100nF debounce)
+- Button A (Shift UP): **GPIO 7** (ESP32-S3 Pin 12, 10kΩ pull-up, 100nF debounce)
+- Button B (Shift DOWN): **GPIO 15** (ESP32-S3 Pin 21, 10kΩ pull-up, 100nF debounce)
 - 3-pin headers per button (Signal, GND, optional LED+)
 
 ### 128x64 OLED Display (SSD1306)
 
 - I2C address: **0x3C**
-- SDA: **GPIO 21** (4.7kΩ pull-up)
-- SCL: **GPIO 22** (4.7kΩ pull-up)
+- SDA: **GPIO 8** (ESP32-S3 Pin 13, 4.7kΩ pull-up)
+- SCL: **GPIO 9** (ESP32-S3 Pin 14, 4.7kΩ pull-up)
 - 4-pin header: VCC (3.3V), GND, SDA, SCL
 
 ---
@@ -139,29 +142,24 @@
 
 ### GPS Module
 
-- UART interface: RX **GPIO 16**, TX **GPIO 17**
+- UART interface: RX **GPIO 17** (ESP32-S3 Pin 23), TX **GPIO 18** (ESP32-S3 Pin 24)
 - 4-pin header: VCC (3.3V/5V), GND, TX, RX
-- Baud: 9600
+- Baud: 9600 (NMEA format)
+- Use UART1 (Serial1)
 
 ### Throttle Pedal (0-5V analog)
 
-- **GPIO 36** (ADC1_CH0) - WiFi compatible
-- Voltage divider: 10kΩ + 20kΩ (scales 5V to 3.3V)
-- Low-pass filter: 1kΩ + 100nF
-- ESD protection: TVS diode
+- **GPIO 1** (ESP32-S3 Pin 4, ADC1_CH0) - WiFi compatible, improved ADC accuracy
+- Voltage divider: 10kΩ + 16kΩ (scales 5V to 3.1V max)
+- Low-pass filter: 10kΩ + 100nF RC filter
+- ESD protection: TVS diode (5.6V)
+- 12-bit resolution (0-4095) with better linearity than ESP32
 - 3-pin screw terminal: 5V, Signal, GND
 
-### Brake Input
+### Key Switch (Ignition)
 
-- **GPIO 15** (10kΩ pull-up)
+- **GPIO 16** (ESP32-S3 Pin 22, 10kΩ pull-up)
 - Optocoupler isolated: **4N35**
-- 2-pin screw terminal
-- Activates brake lights via lighting controller
-
-### Key Switch
-
-- **GPIO 15** (shared with brake or separate GPIO)
-- 10kΩ pull-up
 - 2-pin screw terminal
 
 ---
@@ -171,7 +169,7 @@
 ### PCA9685 16-Channel PWM Driver
 
 - I2C address: **0x40**
-- SDA/SCL: Shared with display (GPIO 21/22)
+- SDA/SCL: Shared with display (GPIO 8/9 on ESP32-S3)
 - Output frequency: 1kHz for LEDs
 - 16 outputs via N-channel MOSFETs (IRLZ44N or similar)
 
@@ -281,10 +279,10 @@
 ### LED Indicators
 
 - **Power (green)**: 3.3V rail active
-- **WiFi (blue)**: GPIO 2
-- **Motor L (yellow)**: PWM activity
-- **Motor R (yellow)**: PWM activity
-- **Fault (red)**: GPIO 4
+- **WiFi (blue)**: GPIO 2 (ESP32-S3 Pin 5)
+- **Motor L (yellow)**: PWM activity monitor
+- **Motor R (yellow)**: PWM activity monitor
+- **Fault (red)**: GPIO 3 (ESP32-S3 Pin 6) - optional status LED
 
 ### Test Points
 
@@ -332,33 +330,42 @@
 
 ### Firmware Compatibility
 
-- All GPIO assignments match existing Razors-Edge firmware
-- I2C addresses pre-configured
-- PWM frequency: 10kHz via ESP32 LEDC
-- Dual-core FreeRTOS task architecture supported
+- All GPIO assignments updated for ESP32-S3-WROOM-1 (see config.h)
+- Pin-compatible with existing Razors-Edge firmware (Arduino framework)
+- I2C addresses pre-configured (0x3C, 0x40, 0x41, 0x44, 0x45)
+- PWM frequency: 10kHz via ESP32-S3 LEDC (8-bit resolution)
+- Dual-core FreeRTOS task architecture fully supported
+- Improved ADC accuracy for throttle safety (12-bit with better linearity)
+- Migration guide: See ESP32-S3_PINOUT_MAPPING.md
 
 ---
 
-## Complete GPIO Pin Mapping
+## Complete GPIO Pin Mapping (ESP32-S3-WROOM-1)
 
 ```
-GPIO 2  → WiFi LED (blue)
-GPIO 4  → Fault LED (red)
-GPIO 12 → Right Motor PWM
-GPIO 13 → Shift Button B (DOWN)
-GPIO 14 → Shift Button A (UP)
-GPIO 15 → Key Switch / Brake Input
-GPIO 16 → GPS RX (ESP32 receives)
-GPIO 17 → GPS TX (ESP32 transmits)
-GPIO 18 → Left Motor PWM
-GPIO 19 → Left Motor Direction
-GPIO 21 → I2C SDA (OLED, PCA9685, INA228s)
-GPIO 22 → I2C SCL (OLED, PCA9685, INA228s)
-GPIO 23 → Right Motor Direction
-GPIO 25 → EC11 Encoder CLK
-GPIO 26 → EC11 Encoder DT
-GPIO 27 → EC11 Encoder Button
-GPIO 36 → Throttle ADC (0-3.3V)
+GPIO 1  (Pin 4)  → Throttle ADC (ADC1_CH0, 12-bit, 0-3.1V)
+GPIO 2  (Pin 5)  → WiFi LED (blue) - optional status indicator
+GPIO 3  (Pin 6)  → Fault LED (red) - optional status indicator
+GPIO 4  (Pin 7)  → EC11 Encoder CLK (Track A)
+GPIO 5  (Pin 8)  → EC11 Encoder DT (Track B)
+GPIO 6  (Pin 9)  → EC11 Encoder Button
+GPIO 7  (Pin 12) → Shift Button A (UP)
+GPIO 8  (Pin 13) → I2C SDA (OLED, PCA9685, INA228s)
+GPIO 9  (Pin 14) → I2C SCL (OLED, PCA9685, INA228s)
+GPIO 10 (Pin 15) → Left Motor PWM (LEDC Channel 0, 10kHz)
+GPIO 11 (Pin 16) → Right Motor PWM (LEDC Channel 1, 10kHz)
+GPIO 12 (Pin 17) → Left Motor Direction
+GPIO 13 (Pin 18) → Right Motor Direction
+GPIO 15 (Pin 21) → Shift Button B (DOWN)
+GPIO 16 (Pin 22) → Key Switch (Ignition)
+GPIO 17 (Pin 23) → GPS RX (ESP32 receives from GPS TX)
+GPIO 18 (Pin 24) → GPS TX (ESP32 transmits to GPS RX)
+GPIO 21 (Pin 27) → Expansion / Future Use
+GPIO 43 (Pin 31) → UART0 TX (USB programming via CH340C)
+GPIO 44 (Pin 32) → UART0 RX (USB programming via CH340C)
+GPIO 0  (Pin 3)  → Boot Button (strapping pin, 10kΩ pull-up)
+GPIO 47 (Pin 35) → Expansion / Future Use
+GPIO 48 (Pin 36) → Expansion / Future Use
 ```
 
 ---
@@ -383,13 +390,15 @@ GPIO 36 → Throttle ADC (0-3.3V)
 - **2x IR2110** - Gate drivers
 - **3x INA228** - Current/voltage monitors
 - **1x PCA9685** - 16-channel PWM driver
-- **1x ESP32-WROOM-32** - Main processor
+- **1x ESP32-S3-WROOM-1-N8R2** - Main processor (8MB Flash, 2MB PSRAM)
+- **1x CH340C** - USB-to-UART bridge
 - **1x LM5116** or **TPS54160** - 60V→12V buck converter
 - **1x LM2576-5.0** - 12V→5V buck converter
 - **1x AMS1117-3.3** - 5V→3.3V LDO
 - **3x 0.001Ω 5W** - Motor current shunts
 - **1x 0.0005Ω 10W** - Battery current shunt
 - **2x 74HC14** - Schmitt trigger buffers
+- **1x USB-C** connector (16-pin)
 - **1x XT90** - Main power connector
 - **2x XT90** or **10mm terminals** - Motor outputs
 - **Heatsink**: 100mm × 50mm aluminum extrusion
