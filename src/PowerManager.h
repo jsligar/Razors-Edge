@@ -13,11 +13,9 @@ public:
     bool init();
     void update();
 
-    // Battery monitoring (simplified - voltage estimate only)
-    float getBatteryVoltage();
-    float getBatterySOC();
-
-    // Stub methods for compatibility
+    // Stub methods for compatibility (no voltage sensing)
+    float getBatteryVoltage() { return 12.0f; }  // Fixed estimate
+    float getBatterySOC() { return 100.0f; }      // Always show full
     float getBatteryCurrent() { return 0.0f; }
     float getBatteryPower() { return 0.0f; }
     float getMotorLeftVoltage() { return 0.0f; }
@@ -32,15 +30,14 @@ public:
     float getEnergyConsumed() { return 0.0f; }
     void resetEnergyCounters() {}
 
-    // Safety checks (simplified)
-    bool isLowVoltage();
+    // Safety checks (all disabled)
+    bool isLowVoltage() { return false; }
     bool isBatteryOvercurrent() { return false; }
     bool isMotorOvercurrent(uint8_t motor) { return false; }
     bool areMotorsBalanced() { return true; }
 
 private:
     unsigned long lastUpdateTime;
-    float estimatedVoltage;
 };
 
 #endif // POWER_MANAGER_H

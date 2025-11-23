@@ -29,10 +29,7 @@
 // ========================================
 // HARDWARE LIMITS - TRACTOR VERSION
 // ========================================
-// Voltage Limits (Volts) - estimated from battery divider
-#define BATTERY_VOLTAGE_MIN     10.0f   // Adjust based on your battery
-#define BATTERY_VOLTAGE_MAX     14.0f   // Adjust based on your battery
-#define MOTOR_VOLTAGE_NOMINAL   12.0f
+// No voltage monitoring in tractor version
 
 // Speed Limits
 #define SPEED_MAX_MPH           5.0f    // Tractor speed limit

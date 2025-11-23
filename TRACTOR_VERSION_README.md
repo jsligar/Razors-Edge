@@ -11,10 +11,11 @@ This is a simplified version of the Razor controller designed for a ride-on trac
   - Both LOW = Neutral
 - **No OLED Display** - all output via Serial
 - **No GPS Module** - navigation features disabled
-- **No Current Sensing** - INA228 sensors removed
-  - Battery voltage estimation only
-  - No motor current monitoring
-  - No current-based safety checks
+- **No Power Monitoring** - No sensors at all
+  - No battery voltage sensing
+  - No current sensing
+  - No motor monitoring
+  - No power-based safety checks
 
 ### Pin Configuration
 - Motor PWM Left: GPIO 18
@@ -26,11 +27,10 @@ This is a simplified version of the Razor controller designed for a ride-on trac
 - Direction Forward: GPIO 25
 - Direction Reverse: GPIO 26
 
-### Battery Configuration
-Default settings are for a 12V battery (adjust in config.h):
-- Min Voltage: 10.0V
-- Max Voltage: 14.0V
-- Speed Limit: 5 MPH
+### Power Configuration
+- No battery monitoring
+- No voltage sensing
+- Speed Limit: 5 MPH (configurable in config.h)
 
 ### Direction Control
 Three modes:
@@ -40,16 +40,15 @@ Three modes:
 
 ### Simplified Safety System
 Only monitors:
-- Battery voltage (low voltage detection)
 - Key switch state
 - Watchdog timer
 
-Removed safety checks:
+All power-based safety checks removed:
+- Battery voltage monitoring
 - Battery overcurrent
 - Motor overcurrent
 - Motor stall detection
 - Motor imbalance
-- Speed limiting
 
 ### Modified Modules
 
@@ -102,29 +101,24 @@ platformio run
 
 ## TODO for Implementation
 
-1. **Add Battery Voltage Sensing**:
-   - Connect battery voltage divider to an ADC pin
-   - Update `PowerManager::getBatteryVoltage()` to read actual voltage
-   - Calculate appropriate divider resistor values for your battery
-
-2. **Test Direction Switch**:
+1. **Test Direction Switch**:
    - Verify switch wiring to GPIO 25 and 26
    - Test Forward/Neutral/Reverse transitions
    - Adjust debounce timing if needed
 
-3. **Calibrate Pedal**:
+2. **Calibrate Pedal**:
    - Use calibration sequence in setup (or via web interface)
    - Set min/max ADC values for your pedal
 
-4. **Tune Speed/Throttle**:
+3. **Tune Speed/Throttle**:
    - Adjust max speeds in config.h for your tractor
    - Modify throttle curves if needed
    - May want to limit reverse speed further
 
-5. **Safety Tuning**:
-   - Set appropriate battery voltage limits
-   - Add any tractor-specific safety checks
+4. **Safety Tuning**:
+   - Add any tractor-specific safety checks if needed
    - Test emergency stop behavior
+   - Consider adding external voltage monitoring if desired
 
 ## Notes
 

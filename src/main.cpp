@@ -102,14 +102,8 @@ void setup() {
         Serial.println("✓ Key switch is ON");
     }
     
-    // Check battery voltage
-    float batteryVoltage = power.getBatteryVoltage();
-    if (batteryVoltage < BATTERY_VOLTAGE_MIN) {
-        Serial.printf("⚠ Low battery voltage: %.1fV (min: %.1fV)\n", 
-                     batteryVoltage, BATTERY_VOLTAGE_MIN);
-    } else {
-        Serial.printf("✓ Battery voltage: %.1fV\n", batteryVoltage);
-    }
+    // No battery voltage monitoring in tractor version
+    Serial.println("✓ Battery monitoring: DISABLED (tractor version)");
     
     // Display startup message (tractor version - serial only)
     ui.showStartupMessage();

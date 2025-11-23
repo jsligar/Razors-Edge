@@ -52,7 +52,7 @@ public:
     void setKeyState(bool keyOn);
 
     // Individual safety checks - simplified for tractor
-    bool checkBatteryVoltage();
+    bool checkBatteryVoltage() { return true; }  // No voltage sensing
     bool checkKeySwitch();
 
     // Stub methods for compatibility
