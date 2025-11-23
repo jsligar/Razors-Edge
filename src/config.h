@@ -4,58 +4,39 @@
 #include <Arduino.h>
 
 // ========================================
-// GPIO PIN ASSIGNMENTS
+// GPIO PIN ASSIGNMENTS - TRACTOR VERSION
 // ========================================
-// I2C Bus
-#define GPIO_SDA                21
-#define GPIO_SCL                22
-
 // Motor Control
-#define GPIO_MOTOR_PWM_LEFT     18  // Changed from 32
+#define GPIO_MOTOR_PWM_LEFT     18
 #define GPIO_MOTOR_PWM_RIGHT    12
-#define GPIO_MOTOR_DIR_LEFT     19  // Changed from 14
-#define GPIO_MOTOR_DIR_RIGHT    23  // Changed from 4
+#define GPIO_MOTOR_DIR_LEFT     19
+#define GPIO_MOTOR_DIR_RIGHT    23
 
 // Sensors
-#define GPIO_PEDAL_ADC          4   // Changed: Use GPIO4 with voltage divider (0-3.3V)
+#define GPIO_PEDAL_ADC          4   // Pedal position (0-3.3V)
 #define GPIO_KEY_SWITCH         15
 
-// User Interface
-#define GPIO_ENCODER_CLK        25
-#define GPIO_ENCODER_DT         26
-#define GPIO_ENCODER_BTN        27
-#define GPIO_KEY0               5   // Changed from 33
-#define GPIO_KEY1               13  // Shift Down
-
-// GPS
-#define GPIO_GPS_RX             16
-#define GPIO_GPS_TX             17
+// Direction Switch (3-position: Forward/Neutral/Reverse)
+#define GPIO_DIR_FORWARD        25  // Forward position
+#define GPIO_DIR_REVERSE        26  // Reverse position
+// Neutral = both LOW
 
 // ========================================
-// I2C DEVICE ADDRESSES
+// I2C DEVICE ADDRESSES - TRACTOR VERSION
 // ========================================
-#define INA228_BATTERY_ADDR     0x45    // MATEKSYS INA-BM (decimal 69)
-#define INA228_MOTOR_LEFT_ADDR  0x40    // Left motor current monitor (changed from 0x41)
-#define INA228_MOTOR_RIGHT_ADDR 0x42    // Right motor current monitor (changed from 0x44)
-#define PCA9685_ADDR            0x70    // 16-channel PWM driver
-#define SSD1306_ADDR            0x3C    // OLED display
+#define PCA9685_ADDR            0x70    // 16-channel PWM driver (for lights if used)
 
 // ========================================
-// HARDWARE LIMITS
+// HARDWARE LIMITS - TRACTOR VERSION
 // ========================================
-// Voltage Limits (Volts)
-#define BATTERY_VOLTAGE_MIN     54.0f
-#define BATTERY_VOLTAGE_MAX     63.0f
-#define MOTOR_VOLTAGE_NOMINAL   30.0f
-
-// Current Limits (Amps)
-#define BATTERY_CURRENT_MAX     50.0f   // Increased for MATEKSYS INA-BM (204.8A capable)
-#define MOTOR_CURRENT_MAX       20.0f
-#define MOTOR_CURRENT_STALL     15.0f
+// Voltage Limits (Volts) - estimated from battery divider
+#define BATTERY_VOLTAGE_MIN     10.0f   // Adjust based on your battery
+#define BATTERY_VOLTAGE_MAX     14.0f   // Adjust based on your battery
+#define MOTOR_VOLTAGE_NOMINAL   12.0f
 
 // Speed Limits
-#define SPEED_MAX_MPH           25.0f
-#define MOTOR_RPM_MAX           25000
+#define SPEED_MAX_MPH           5.0f    // Tractor speed limit
+#define MOTOR_RPM_MAX           5000
 
 // ========================================
 // PWM CONFIGURATION
@@ -66,12 +47,9 @@
 #define PWM_CHANNEL_RIGHT       1
 
 // ========================================
-// SAFETY THRESHOLDS
+// SAFETY THRESHOLDS - TRACTOR VERSION
 // ========================================
-#define MOTOR_IMBALANCE_WARN    15.0f   // % difference warning
-#define MOTOR_IMBALANCE_FAULT   30.0f   // % difference fault
 #define WATCHDOG_TIMEOUT_MS     1000    // Watchdog timeout
-#define SPORT_PLUS_TIMEOUT_MS   10000   // 10 seconds max in Sport+
 
 // Back-EMF Protection Thresholds
 #define BACK_EMF_DECEL_RATE     25.0f   // Safe deceleration rate (%/sec)
@@ -80,34 +58,27 @@
 #define BACK_EMF_MAX_TIME_MS    10000   // Maximum protection time
 
 // ========================================
-// GEAR SYSTEM
+// DIRECTION SYSTEM - TRACTOR VERSION
 // ========================================
-enum GearMode {
-    GEAR_PARK = 0,
-    GEAR_1ST,
-    GEAR_2ND,
-    GEAR_3RD,
-    GEAR_ECO,
-    GEAR_SPORT_PLUS,
-    GEAR_COUNT
+enum DirectionMode {
+    DIR_NEUTRAL = 0,
+    DIR_FORWARD,
+    DIR_REVERSE,
+    DIR_COUNT
 };
 
-// Gear Configuration Structure
-struct GearConfig {
-    float maxThrottle;      // Maximum throttle % for this gear
-    float curveExponent;    // Throttle curve exponent
+// Direction Configuration Structure
+struct DirectionConfig {
+    float maxThrottle;      // Maximum throttle % for this direction
     const char* name;       // Display name
     uint32_t color;         // LED color (if applicable)
 };
 
-// Gear Configurations
-static const GearConfig GEAR_CONFIGS[GEAR_COUNT] = {
-    {0.0f,  0.0f, "P", 0xFF0000},      // Park - Red
-    {40.0f, 0.5f, "1", 0x00FF00},      // 1st - Green  
-    {70.0f, 1.0f, "2", 0x0000FF},      // 2nd - Blue
-    {100.0f, 1.5f, "3", 0xFFFF00},     // 3rd - Yellow
-    {60.0f, 0.7f, "E", 0x00FFFF},      // Eco - Cyan
-    {110.0f, 2.0f, "S+", 0xFF00FF}     // Sport+ - Magenta
+// Direction Configurations
+static const DirectionConfig DIR_CONFIGS[DIR_COUNT] = {
+    {0.0f,   "N", 0xFF0000},    // Neutral - Red
+    {100.0f, "F", 0x00FF00},    // Forward - Green
+    {50.0f,  "R", 0xFFFF00}     // Reverse - Yellow (limited speed)
 };
 
 // ========================================
@@ -126,14 +97,8 @@ enum SystemState {
 enum FaultCode {
     NO_FAULT = 0,
     LOW_BATTERY = 1,
-    BATTERY_OVERCURRENT = 2,
-    MOTOR_LEFT_OVERCURRENT = 3,
-    MOTOR_RIGHT_OVERCURRENT = 4,
-    MOTOR_LEFT_STALL = 5,
-    MOTOR_RIGHT_STALL = 6,
-    MOTOR_IMBALANCE = 7,
-    KEY_SWITCH_OFF = 8,
-    WATCHDOG_TIMEOUT = 9
+    KEY_SWITCH_OFF = 2,
+    WATCHDOG_TIMEOUT = 3
 };
 
 // ========================================
@@ -152,26 +117,7 @@ enum LightMode {
 #define LIGHT_REAR_LEFT         2
 #define LIGHT_REAR_RIGHT        3
 
-// ========================================
-// DISPLAY CONFIGURATION
-// ========================================
-enum ScreenType {
-    SCREEN_MAIN_DRIVE,
-    SCREEN_DETAILED_METRICS,
-    SCREEN_SETTINGS,
-    SCREEN_WARNING,
-    SCREEN_CALIBRATION
-};
-
-#define DISPLAY_WIDTH           128
-#define DISPLAY_HEIGHT          64
-#define DISPLAY_UPDATE_HZ       10
-
-// ========================================
-// GPS CONFIGURATION
-// ========================================
-#define GPS_BAUD_RATE           9600
-#define GPS_UPDATE_RATE         1       // Hz
+// Note: No OLED display or GPS in tractor version
 
 // ========================================
 // CALIBRATION VALUES
@@ -189,9 +135,8 @@ enum ScreenType {
 #define POWER_UPDATE_INTERVAL_MS  50    // 20Hz power monitoring
 
 // ========================================
-// DEBOUNCE TIMES
+// DEBOUNCE TIMES - TRACTOR VERSION
 // ========================================
-#define BUTTON_DEBOUNCE_MS      50
-#define ENCODER_DEBOUNCE_MS     20
+#define SWITCH_DEBOUNCE_MS      50  // Direction switch debounce
 
 #endif // CONFIG_H

@@ -11,46 +11,33 @@ InputHandler::InputHandler() :
     for (uint8_t i = 0; i < FILTER_SIZE; i++) {
         pedalFilter[i] = 0;
     }
-    
+
     // Initialize button states
     keySwitch = {false, false, false, false, 0};
-    encoder = {0, 0, false, false};
-    shiftUpButton = {false, false, false, false, 0};
-    shiftDownButton = {false, false, false, false, 0};
-    
-    lastEncoderA = 0;
-    lastEncoderB = 0;
+    dirSwitch = {DIR_NEUTRAL, DIR_NEUTRAL, false, 0};
 }
 
 bool InputHandler::init() {
-    Serial.println("Initializing Input Handler...");
-    
+    Serial.println("Initializing Input Handler (Tractor Version)...");
+
     // Configure input pins
     pinMode(GPIO_KEY_SWITCH, INPUT);        // External 10k pulldown required!
-    pinMode(GPIO_ENCODER_CLK, INPUT_PULLUP);
-    pinMode(GPIO_ENCODER_DT, INPUT_PULLUP);
-    pinMode(GPIO_ENCODER_BTN, INPUT_PULLUP);
-    pinMode(GPIO_KEY0, INPUT_PULLUP);       // Shift Up
-    pinMode(GPIO_KEY1, INPUT_PULLUP);       // Shift Down
+    pinMode(GPIO_DIR_FORWARD, INPUT_PULLUP); // Direction switch forward
+    pinMode(GPIO_DIR_REVERSE, INPUT_PULLUP); // Direction switch reverse
     pinMode(GPIO_PEDAL_ADC, INPUT);         // No pullup on ADC
-    
+
     // Configure ADC
     analogReadResolution(12);               // 12-bit resolution (0-4095)
     analogSetAttenuation(ADC_11db);         // 0-3.3V range
-    
-    // Read initial encoder state
-    lastEncoderA = digitalRead(GPIO_ENCODER_CLK);
-    lastEncoderB = digitalRead(GPIO_ENCODER_DT);
-    
-    Serial.println("✓ Input Handler initialized");
+
+    Serial.println("✓ Input Handler initialized (Tractor Version)");
     return true;
 }
 
 void InputHandler::update() {
     updatePedal();
     updateKeySwitch();
-    updateEncoder();
-    updateButtons();
+    updateDirectionSwitch();
 }
 
 float InputHandler::getPedalPosition() {
@@ -74,70 +61,24 @@ bool InputHandler::keyStateChanged() {
     return changed;
 }
 
-int16_t InputHandler::getEncoderPosition() {
-    return encoder.position;
+DirectionMode InputHandler::getDirection() {
+    return dirSwitch.current;
 }
 
-int16_t InputHandler::getEncoderDelta() {
-    int16_t delta = encoder.position - encoder.lastPosition;
-    encoder.lastPosition = encoder.position;
-    return delta;
-}
-
-bool InputHandler::isEncoderPressed() {
-    return encoder.buttonPressed;
-}
-
-bool InputHandler::encoderButtonPressed() {
-    bool pressed = encoder.buttonChanged && encoder.buttonPressed;
-    if (pressed) {
-        encoder.buttonChanged = false;
+bool InputHandler::directionChanged() {
+    bool changed = dirSwitch.changed;
+    if (changed) {
+        dirSwitch.changed = false;
     }
-    return pressed;
-}
-
-bool InputHandler::encoderButtonReleased() {
-    bool released = encoder.buttonChanged && !encoder.buttonPressed;
-    if (released) {
-        encoder.buttonChanged = false;
-    }
-    return released;
-}
-
-bool InputHandler::isShiftUpPressed() {
-    bool pressed = shiftUpButton.pressed;
-    if (pressed) {
-        shiftUpButton.pressed = false;
-    }
-    return pressed;
-}
-
-bool InputHandler::isShiftDownPressed() {
-    bool pressed = shiftDownButton.pressed;
-    if (pressed) {
-        shiftDownButton.pressed = false;
-    }
-    return pressed;
-}
-
-bool InputHandler::isShiftUpHeld() {
-    return shiftUpButton.current;
-}
-
-bool InputHandler::isShiftDownHeld() {
-    return shiftDownButton.current;
+    return changed;
 }
 
 void InputHandler::calibratePedal() {
     Serial.println("Starting pedal calibration...");
-    Serial.println("Release pedal completely and press shift up button...");
-    
-    // Wait for shift up button press
-    while (!isShiftUpPressed()) {
-        update();
-        delay(10);
-    }
-    
+    Serial.println("Release pedal completely (waiting 3 seconds)...");
+
+    delay(3000);
+
     // Record minimum value
     uint16_t minSum = 0;
     for (int i = 0; i < 100; i++) {
@@ -145,16 +86,12 @@ void InputHandler::calibratePedal() {
         delay(10);
     }
     pedalMinADC = minSum / 100;
-    
+
     Serial.printf("Min value recorded: %d\n", pedalMinADC);
-    Serial.println("Now press pedal fully and press shift down button...");
-    
-    // Wait for shift down button press
-    while (!isShiftDownPressed()) {
-        update();
-        delay(10);
-    }
-    
+    Serial.println("Now press pedal fully (waiting 5 seconds)...");
+
+    delay(5000);
+
     // Record maximum value
     uint16_t maxSum = 0;
     for (int i = 0; i < 100; i++) {
@@ -162,7 +99,7 @@ void InputHandler::calibratePedal() {
         delay(10);
     }
     pedalMaxADC = maxSum / 100;
-    
+
     Serial.printf("Max value recorded: %d\n", pedalMaxADC);
     Serial.println("Pedal calibration complete!");
 }
@@ -215,34 +152,40 @@ void InputHandler::updateKeySwitch() {
     updateButton(keySwitch, currentState);
 }
 
-void InputHandler::updateEncoder() {
-    // Read encoder signals
-    int currentA = digitalRead(GPIO_ENCODER_CLK);
-    int currentB = digitalRead(GPIO_ENCODER_DT);
-    
-    // Detect state changes
-    if (currentA != lastEncoderA || currentB != lastEncoderB) {
-        handleEncoderChange();
-        lastEncoderA = currentA;
-        lastEncoderB = currentB;
-    }
-    
-    // Read encoder button
-    bool buttonPressed = !digitalRead(GPIO_ENCODER_BTN); // Active low
-    if (buttonPressed != encoder.buttonPressed) {
-        encoder.buttonPressed = buttonPressed;
-        encoder.buttonChanged = true;
+void InputHandler::updateDirectionSwitch() {
+    DirectionMode newDirection = readDirectionSwitch();
+    unsigned long currentTime = millis();
+
+    // Check for state change
+    if (newDirection != dirSwitch.current) {
+        // State changed, check if enough time has passed (debounce)
+        if (currentTime - dirSwitch.lastChangeTime > SWITCH_DEBOUNCE_MS) {
+            dirSwitch.previous = dirSwitch.current;
+            dirSwitch.current = newDirection;
+            dirSwitch.changed = true;
+            dirSwitch.lastChangeTime = currentTime;
+
+            Serial.printf("Direction changed: %s -> %s\n",
+                         DIR_CONFIGS[dirSwitch.previous].name,
+                         DIR_CONFIGS[dirSwitch.current].name);
+        }
     }
 }
 
-void InputHandler::updateButtons() {
-    // Shift up button (KEY0) - active low
-    bool shiftUpState = !digitalRead(GPIO_KEY0);
-    updateButton(shiftUpButton, shiftUpState);
-    
-    // Shift down button (KEY1) - active low
-    bool shiftDownState = !digitalRead(GPIO_KEY1);
-    updateButton(shiftDownButton, shiftDownState);
+DirectionMode InputHandler::readDirectionSwitch() {
+    // Read both switch positions (active low with pullup)
+    bool forwardActive = !digitalRead(GPIO_DIR_FORWARD);
+    bool reverseActive = !digitalRead(GPIO_DIR_REVERSE);
+
+    // Determine direction based on switch state
+    if (forwardActive && !reverseActive) {
+        return DIR_FORWARD;
+    } else if (!forwardActive && reverseActive) {
+        return DIR_REVERSE;
+    } else {
+        // Both low or both high = neutral
+        return DIR_NEUTRAL;
+    }
 }
 
 void InputHandler::updateButton(ButtonState& button, bool currentState) {
@@ -274,17 +217,3 @@ uint16_t InputHandler::getFilteredPedalADC() {
     return sum / FILTER_SIZE;
 }
 
-void InputHandler::handleEncoderChange() {
-    // Simple quadrature decoding
-    int currentA = digitalRead(GPIO_ENCODER_CLK);
-    int currentB = digitalRead(GPIO_ENCODER_DT);
-    
-    // Determine direction based on the sequence
-    if (lastEncoderA == 0 && currentA == 1) {
-        if (currentB == 0) {
-            encoder.position++;
-        } else {
-            encoder.position--;
-        }
-    }
-}

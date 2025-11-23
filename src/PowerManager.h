@@ -2,65 +2,45 @@
 #define POWER_MANAGER_H
 
 #include <Arduino.h>
-#include <Adafruit_INA228.h>
 #include "config.h"
 
+// Simplified PowerManager for tractor - no current sensing
 class PowerManager {
 public:
     PowerManager();
-    
+
     // Initialization and main update
     bool init();
     void update();
-    
-    // Battery monitoring
+
+    // Battery monitoring (simplified - voltage estimate only)
     float getBatteryVoltage();
-    float getBatteryCurrent();
-    float getBatteryPower();
     float getBatterySOC();
-    
-    // Motor monitoring
-    float getMotorLeftVoltage();
-    float getMotorLeftCurrent();
-    float getMotorLeftPower();
-    
-    float getMotorRightVoltage();
-    float getMotorRightCurrent();
-    float getMotorRightPower();
-    
-    // Calculated values
-    float getTotalMotorCurrent();
-    float getMotorImbalance();
-    float getSystemEfficiency();
-    
-    // Energy tracking
-    float getEnergyConsumed();
-    void resetEnergyCounters();
-    
-    // Safety checks
+
+    // Stub methods for compatibility
+    float getBatteryCurrent() { return 0.0f; }
+    float getBatteryPower() { return 0.0f; }
+    float getMotorLeftVoltage() { return 0.0f; }
+    float getMotorLeftCurrent() { return 0.0f; }
+    float getMotorLeftPower() { return 0.0f; }
+    float getMotorRightVoltage() { return 0.0f; }
+    float getMotorRightCurrent() { return 0.0f; }
+    float getMotorRightPower() { return 0.0f; }
+    float getTotalMotorCurrent() { return 0.0f; }
+    float getMotorImbalance() { return 0.0f; }
+    float getSystemEfficiency() { return 0.0f; }
+    float getEnergyConsumed() { return 0.0f; }
+    void resetEnergyCounters() {}
+
+    // Safety checks (simplified)
     bool isLowVoltage();
-    bool isBatteryOvercurrent();
-    bool isMotorOvercurrent(uint8_t motor);
-    bool areMotorsBalanced();
-    
+    bool isBatteryOvercurrent() { return false; }
+    bool isMotorOvercurrent(uint8_t motor) { return false; }
+    bool areMotorsBalanced() { return true; }
+
 private:
-    // All monitors use INA228 (including MATEKSYS INA-BM)
-    Adafruit_INA228 batteryMonitor;
-    Adafruit_INA228 motorLeftMonitor;
-    Adafruit_INA228 motorRightMonitor;
-    
-    // Sensor status
-    bool batteryMonitorReady;
-    bool motorLeftMonitorReady;
-    bool motorRightMonitorReady;
-    
-    // Energy tracking
     unsigned long lastUpdateTime;
-    float energyConsumed_Wh;
-    
-    // Helper methods
-    bool initSensor(Adafruit_INA228& sensor, uint8_t address, const char* name);
-    void updateEnergyTracking();
+    float estimatedVoltage;
 };
 
 #endif // POWER_MANAGER_H

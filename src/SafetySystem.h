@@ -4,24 +4,18 @@
 #include <Arduino.h>
 #include "config.h"
 
+// Simplified SafetyLimits for tractor version
 struct SafetyLimits {
     float batteryVoltageMin;
     float batteryVoltageMax;
-    float batteryCurrentMax;
-    float motorCurrentMax;
-    float motorCurrentStall;
-    float motorImbalanceWarn;
-    float motorImbalanceFault;
     float speedMax;
 };
 
+// Simplified FaultHistory for tractor version
 struct FaultHistory {
     uint8_t faultCode;
     unsigned long timestamp;
     float batteryVoltage;
-    float batteryCurrent;
-    float motorLeftCurrent;
-    float motorRightCurrent;
 };
 
 class SafetySystem {
@@ -53,21 +47,23 @@ public:
     void setSafetyLimits(const SafetyLimits& limits);
     SafetyLimits getSafetyLimits();
     
-    // Data inputs (called by main loop)
-    void setBatteryData(float voltage, float current);
-    void setMotorData(float leftCurrent, float rightCurrent);
-    void setSpeedData(float speed);
+    // Data inputs (called by main loop) - simplified for tractor
+    void setBatteryData(float voltage, float current);  // current ignored
     void setKeyState(bool keyOn);
-    void setMotorSpeed(float leftSpeed, float rightSpeed);
-    
-    // Individual safety checks
+
+    // Individual safety checks - simplified for tractor
     bool checkBatteryVoltage();
-    bool checkBatteryCurrent();
-    bool checkMotorCurrents();
-    bool checkMotorStall();
-    bool checkMotorImbalance();
     bool checkKeySwitch();
-    bool checkSpeedLimit();
+
+    // Stub methods for compatibility
+    void setMotorData(float leftCurrent, float rightCurrent) {}
+    void setSpeedData(float speed) {}
+    void setMotorSpeed(float leftSpeed, float rightSpeed) {}
+    bool checkBatteryCurrent() { return true; }
+    bool checkMotorCurrents() { return true; }
+    bool checkMotorStall() { return true; }
+    bool checkMotorImbalance() { return true; }
+    bool checkSpeedLimit() { return true; }
     
     // Fault history
     uint8_t getFaultHistoryCount();
@@ -88,22 +84,12 @@ private:
     unsigned long lastWatchdogFeed;
     bool watchdogEnabled;
     
-    // Input data
+    // Input data - simplified for tractor
     float batteryVoltage;
-    float batteryCurrent;
-    float motorLeftCurrent;
-    float motorRightCurrent;
-    float vehicleSpeed;
     bool keyState;
-    float motorLeftSpeed;
-    float motorRightSpeed;
-    
+
     // Fault timing
     unsigned long faultStartTimes[16]; // Time when each fault first occurred
-    
-    // Stall detection
-    unsigned long stallDetectionStart[2]; // Left and right motor
-    float lastMotorSpeeds[2];
     
     // Fault history
     static const uint8_t MAX_FAULT_HISTORY = 10;
@@ -117,9 +103,7 @@ private:
     bool isFaultActive(uint8_t faultCode);
     void recordFault(uint8_t faultCode);
     void checkWatchdog();
-    bool checkStallCondition(uint8_t motor);
-    float calculateMotorImbalance();
-    
+
     // Fault code to bit conversion
     uint16_t faultCodeToBit(uint8_t faultCode);
 };

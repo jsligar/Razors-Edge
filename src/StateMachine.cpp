@@ -11,10 +11,9 @@ StateMachine::StateMachine() :
     currentState(STATE_INIT),
     previousState(STATE_INIT),
     stateEntryTime(0),
-    currentGear(GEAR_PARK),
-    previousGear(GEAR_PARK),
-    gearChangeTime(0),
-    sportPlusStartTime(0),
+    currentDirection(DIR_NEUTRAL),
+    previousDirection(DIR_NEUTRAL),
+    directionChangeTime(0),
     powerManager(nullptr),
     motorController(nullptr),
     lightController(nullptr),
@@ -129,92 +128,14 @@ void StateMachine::forceFaultState(uint8_t faultCode) {
     transitionToState(STATE_FAULT);
 }
 
-GearMode StateMachine::getCurrentGear() {
-    return currentGear;
+DirectionMode StateMachine::getCurrentDirection() {
+    return currentDirection;
 }
 
-void StateMachine::handleShiftUp() {
-    GearMode newGear = currentGear;
-    
-    switch (currentGear) {
-        case GEAR_PARK:
-            newGear = GEAR_1ST;
-            break;
-        case GEAR_1ST:
-            newGear = GEAR_2ND;
-            break;
-        case GEAR_2ND:
-            newGear = GEAR_3RD;
-            break;
-        case GEAR_3RD:
-            newGear = GEAR_SPORT_PLUS;
-            break;
-        case GEAR_ECO:
-            newGear = GEAR_1ST;
-            break;
-        case GEAR_SPORT_PLUS:
-            // Already at highest gear
-            return;
+void StateMachine::setDirection(DirectionMode dir) {
+    if (isDirectionChangeAllowed(dir)) {
+        executeDirectionChange(dir);
     }
-    
-    if (isGearChangeAllowed(newGear)) {
-        executeGearChange(newGear);
-    }
-}
-
-void StateMachine::handleShiftDown() {
-    GearMode newGear = currentGear;
-    
-    switch (currentGear) {
-        case GEAR_PARK:
-            newGear = GEAR_ECO;
-            break;
-        case GEAR_1ST:
-            newGear = GEAR_ECO;
-            break;
-        case GEAR_2ND:
-            newGear = GEAR_1ST;
-            break;
-        case GEAR_3RD:
-            newGear = GEAR_2ND;
-            break;
-        case GEAR_ECO:
-            newGear = GEAR_PARK;
-            break;
-        case GEAR_SPORT_PLUS:
-            newGear = GEAR_3RD;
-            break;
-    }
-    
-    if (isGearChangeAllowed(newGear)) {
-        executeGearChange(newGear);
-    }
-}
-
-void StateMachine::setGear(GearMode gear) {
-    if (isGearChangeAllowed(gear)) {
-        executeGearChange(gear);
-    }
-}
-
-void StateMachine::checkSportPlusTimeout() {
-    if (currentGear == GEAR_SPORT_PLUS) {
-        unsigned long elapsed = millis() - sportPlusStartTime;
-        
-        if (elapsed > SPORT_PLUS_TIMEOUT_MS) {
-            Serial.println("Sport+ timeout - downshifting to 3rd gear");
-            executeGearChange(GEAR_3RD);
-        }
-    }
-}
-
-unsigned long StateMachine::getSportPlusRemainingTime() {
-    if (currentGear != GEAR_SPORT_PLUS) return 0;
-    
-    unsigned long elapsed = millis() - sportPlusStartTime;
-    if (elapsed >= SPORT_PLUS_TIMEOUT_MS) return 0;
-    
-    return SPORT_PLUS_TIMEOUT_MS - elapsed;
 }
 
 void StateMachine::setModuleReferences(PowerManager* power, MotorController* motors,
@@ -438,62 +359,35 @@ void StateMachine::handleFaultState() {
     // Fault state - everything disabled, show warnings
 }
 
-void StateMachine::executeGearChange(GearMode newGear) {
-    previousGear = currentGear;
-    currentGear = newGear;
-    gearChangeTime = millis();
-    
-    // Handle special gear logic
-    if (newGear == GEAR_SPORT_PLUS) {
-        handleSportPlusEntry();
-    }
-    
+void StateMachine::executeDirectionChange(DirectionMode newDir) {
+    previousDirection = currentDirection;
+    currentDirection = newDir;
+    directionChangeTime = millis();
+
     // Update motor controller
     if (motorController) {
-        motorController->setGear(newGear);
+        motorController->setGear(newDir);  // Motor controller expects direction
     }
-    
+
     // Update user interface
     if (userInterface) {
-        userInterface->showGearChange(newGear);
+        userInterface->showGearChange(newDir);
     }
-    
+
     // Update lights
     if (lightController) {
-        lightController->startGearShiftAnimation(newGear);
+        lightController->startGearShiftAnimation(newDir);
     }
-    
-    Serial.printf("Gear: %s → %s\n", 
-                 GEAR_CONFIGS[previousGear].name, 
-                 GEAR_CONFIGS[currentGear].name);
+
+    Serial.printf("Direction: %s → %s\n",
+                 DIR_CONFIGS[previousDirection].name,
+                 DIR_CONFIGS[currentDirection].name);
 }
 
-bool StateMachine::isGearChangeAllowed(GearMode newGear) {
-    // Check if gear change is safe
-    if (newGear == GEAR_SPORT_PLUS) {
-        // Special checks for Sport+ mode
-        if (powerManager) {
-            float voltage = powerManager->getBatteryVoltage();
-            float current = powerManager->getBatteryCurrent();
-            
-            if (voltage < 58.0f) {
-                Serial.println("Sport+ denied: Battery voltage too low");
-                return false;
-            }
-            
-            if (current > 18.0f) {
-                Serial.println("Sport+ denied: System under high load");
-                return false;
-            }
-        }
-    }
-    
+bool StateMachine::isDirectionChangeAllowed(DirectionMode newDir) {
+    // Direction change always allowed in tractor mode
+    // Could add safety checks here if needed (e.g., prevent reverse at high speed)
     return true;
-}
-
-void StateMachine::handleSportPlusEntry() {
-    sportPlusStartTime = millis();
-    Serial.println("Sport+ mode activated - 10 second timeout started");
 }
 
 // Condition checking methods

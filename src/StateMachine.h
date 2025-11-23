@@ -36,15 +36,9 @@ public:
     void forceState(SystemState state);
     void forceFaultState(uint8_t faultCode);
     
-    // Gear management
-    GearMode getCurrentGear();
-    void handleShiftUp();
-    void handleShiftDown();
-    void setGear(GearMode gear);
-    
-    // Sport+ timeout
-    void checkSportPlusTimeout();
-    unsigned long getSportPlusRemainingTime();
+    // Direction management (tractor version)
+    DirectionMode getCurrentDirection();
+    void setDirection(DirectionMode dir);
     
     // System references (set by main.cpp)
     void setModuleReferences(PowerManager* power, MotorController* motors,
@@ -63,11 +57,10 @@ private:
     SystemState previousState;
     unsigned long stateEntryTime;
     
-    // Gear state
-    GearMode currentGear;
-    GearMode previousGear;
-    unsigned long gearChangeTime;
-    unsigned long sportPlusStartTime;
+    // Direction state (tractor version)
+    DirectionMode currentDirection;
+    DirectionMode previousDirection;
+    unsigned long directionChangeTime;
     
     // Module references
     PowerManager* powerManager;
@@ -102,10 +95,9 @@ private:
     void handleReverseState();
     void handleFaultState();
     
-    // Gear logic
-    void executeGearChange(GearMode newGear);
-    bool isGearChangeAllowed(GearMode newGear);
-    void handleSportPlusEntry();
+    // Direction logic
+    void executeDirectionChange(DirectionMode newDir);
+    bool isDirectionChangeAllowed(DirectionMode newDir);
     
     // Condition checking
     bool checkSafetyConditions();

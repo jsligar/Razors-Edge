@@ -39,17 +39,12 @@ void setup() {
     Serial.begin(115200);
     Serial.println();
     Serial.println("=================================");
-    Serial.println("    RAZOR 60V CONTROLLER v1.0   ");
-    Serial.println("    ESP32 Electric Vehicle       ");
+    Serial.println("    TRACTOR CONTROLLER v1.0     ");
+    Serial.println("    ESP32 Tractor Control        ");
     Serial.println("=================================");
     
     // Disable WiFi initially (will be enabled by web interface if needed)
     WiFi.mode(WIFI_OFF);
-    
-    // Initialize I2C Bus
-    Wire.begin(GPIO_SDA, GPIO_SCL);
-    Wire.setClock(400000); // 400kHz I2C speed
-    Serial.println("I2C Bus initialized");
     
     // Initialize all modules in dependency order
     Serial.println("Initializing modules...");
@@ -71,23 +66,22 @@ void setup() {
     lights.init();
     Serial.println("✓ Light Controller initialized");
     
-    // User interface
+    // User interface (tractor version - serial only)
     ui.init();
     Serial.println("✓ User Interface initialized");
-    
-    // GPS (optional, may fail if not connected)
+
+    // GPS (disabled in tractor version)
     gps.init();
-    Serial.println("✓ Navigation initialized");
-    
+    Serial.println("✓ Navigation initialized (disabled)");
+
     // Web interface (optional WiFi functionality)
     webInterface.init();
     Serial.println("✓ Web Interface initialized");
-    
+
     // State machine (coordinates everything)
     stateMachine.init();
-    
+
     // Link modules for cross-communication
-    motors.setNavigationPtr(&gps);  // Enable geofencing integration
     webInterface.setModuleReferences(&power, &motors, &gps, &lights, &safety, &ui);  // Enable web monitoring
     coreManager.setModuleReferences(&power, &motors, &gps, &lights, &safety, &webInterface, &ui, &inputs);
     
@@ -117,7 +111,7 @@ void setup() {
         Serial.printf("✓ Battery voltage: %.1fV\n", batteryVoltage);
     }
     
-    // Display startup message on OLED
+    // Display startup message (tractor version - serial only)
     ui.showStartupMessage();
     
     // Enable watchdog
@@ -147,15 +141,10 @@ void loop() {
     // Most work is now handled by dedicated tasks on specific cores
     // This main loop just handles coordination and fallback operations
     
-    // Handle gear shifting input events (time-critical)
-    if (inputs.isShiftUpPressed()) {
-        stateMachine.handleShiftUp();
-        Serial.println("Shift UP requested");
-    }
-    
-    if (inputs.isShiftDownPressed()) {
-        stateMachine.handleShiftDown();
-        Serial.println("Shift DOWN requested");
+    // Handle direction switch changes (tractor version)
+    if (inputs.directionChanged()) {
+        DirectionMode newDir = inputs.getDirection();
+        stateMachine.setDirection(newDir);
     }
     
     // Update state machine coordination
@@ -176,8 +165,7 @@ void loop() {
         motors.emergencyStop();
     }
     
-    // Sport+ timeout check
-    stateMachine.checkSportPlusTimeout();
+    // No Sport+ in tractor version
     
     // Light main loop delay for task scheduling
     delay(10);  // Reduced delay since tasks handle most work
@@ -185,11 +173,11 @@ void loop() {
     // Performance monitoring every 10 seconds
     static unsigned long lastDebug = 0;
     if (millis() - lastDebug > 10000) {
-        Serial.printf("System Status - Tasks: %s, Heap: %d, Battery: %.1fV, Gear: %s\n",
+        Serial.printf("System Status - Tasks: %s, Heap: %d, Battery: %.1fV, Direction: %s\n",
                      sysData.systemReady ? "ACTIVE" : "STOPPED",
                      ESP.getFreeHeap(),
                      sysData.batteryVoltage,
-                     GEAR_CONFIGS[sysData.currentGear].name);
+                     DIR_CONFIGS[stateMachine.getCurrentDirection()].name);
         lastDebug = millis();
     }
 }
